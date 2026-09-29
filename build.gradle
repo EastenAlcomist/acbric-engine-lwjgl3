@@ -312,6 +312,49 @@ tasks.register('engineSelfTest', JavaExec) {
     systemProperty 'java.library.path', nativeDir.absolutePath
 }
 
+// 带本 MOD 启动游戏。需要显示器；数据目录默认取 <instanceDir>/data，
+// 也可用 -PstaticDir=... 指向别处的 data（等价游戏的 -Dacs.staticdir）。
+//   -Pattract=1  进吸引模式（主菜单空闲 20 秒后自动演示编辑器）
+//   -PgameArgs="--foo"  透传给游戏的额外参数
+tasks.register('runGame', JavaExec) {
+    group = 'acbric'
+    description = 'Launches Airships with this mod installed (needs a display).'
+    dependsOn tasks.named('jar'), tasks.named('installMod')
+
+    workingDir = instanceDir
+    classpath = fileTree(dir: loaderLibDir, include: ['*.jar'])
+    mainClass = 'net.fabricmc.loader.impl.launch.knot.KnotClient'
+
+    jvmArgs '-Xmx4G',
+            '--add-opens=java.base/java.util=ALL-UNNAMED',
+            '--enable-preview',
+            '--enable-native-access=ALL-UNNAMED',
+            '-Ddev=true',
+            "-Dsteam=${findProperty('airshipsSteam') ?: 'false'}"
+    if (findProperty('attract') != null) {
+        jvmArgs '-Dattract=true'
+    }
+    if (findProperty('gameArgs')) {
+        args findProperty('gameArgs').split(' ').toList()
+    }
+
+    def staticDir = pathOption('staticDir') ?: instanceDir.absolutePath
+    systemProperty 'acs.staticdir', file(staticDir).absolutePath
+    def nativeDir = new File(gameLibDir, 'native')
+    systemProperty 'org.lwjgl.librarypath', nativeDir.absolutePath
+    systemProperty 'net.java.games.input.librarypath', nativeDir.absolutePath
+    systemProperty 'java.library.path', nativeDir.absolutePath
+
+    doFirst {
+        def dataDir = new File(file(staticDir), 'data')
+        if (!dataDir.isDirectory()) {
+            throw new GradleException('游戏数据目录不存在: ' + dataDir.absolutePath +
+                    '\n请用 -PstaticDir=<含 data/ 的目录> 指定，或在 local.properties 里设 staticDir。')
+        }
+        logger.lifecycle('启动游戏：instance=' + instanceDir.absolutePath + '  staticDir=' + file(staticDir).absolutePath)
+    }
+}
+
 // 安装 MOD 时会把旧固定管线着色器备份为 *.legacy-glsl.bak；本任务整体回退。
 tasks.register('restoreLegacyShaders') {
     group = 'acbric'
