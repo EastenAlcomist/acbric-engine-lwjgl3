@@ -1,5 +1,23 @@
 # 变更记录
 
+## 未发布：首个游戏类 mixin 上线（23 → 21）
+
+- **新增 mixin 基础设施**：`acbric-engine-lwjgl3.mixins.json` + `fabric.mod.json` 的
+  `mixins` 字段 + `net.fabricacs.engine.mixin` 包。Mixin 依赖来自框架 `loader-libs`
+  的 `sponge-mixin`（已在编译类路径上）。
+- **`LightMapLayerMixin`**：给原版 `LightMapLayer` 补一次 `Graphics.flush()`——
+  迁移版与原版**只差这一处**，而它正是上次整批路由导致战斗画面全空的根因。
+  注入方式：该方法里 `Graphics.resetTransform()` 只出现 1 次，且是实例方法，
+  `@Redirect` 处理器第一参数即接收者，因此不需要 `@Local`（本项目所用 Mixin 没有该注解）。
+  与迁移版的偏差：本 mixin 在 `resetTransform()` 后立刻 flush，迁移版是在
+  `bindNone()`/`glDisable` 之后；批次内容相同。
+- **`MyDraw` 删除**：它与原版的差异**只有调试打印**（StringBuilder），零行为风险。
+- 自检断言更新：两者都改为"必须来自游戏 jar"；`ci-guards` 基线 23 → 21。
+
+验证：构建通过；`engineSelfTest` PASS，且 `LightMapLayer` 探针加载成功——
+Mixin 配置是 `defaultRequire: 1`，注入失败会直接抛错，所以注入确实生效。
+**战斗画面待用户复测**（这是唯一能覆盖光照层路径的验收）。
+
 ## 未发布：按调研结论重新实施 GL 路由（33 → 23）
 
 依据「二·补」的调研结论，只对**纯 GL 换主**的类启用路由：

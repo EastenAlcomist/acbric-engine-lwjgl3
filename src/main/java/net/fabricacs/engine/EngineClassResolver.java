@@ -95,7 +95,7 @@ public final class EngineClassResolver {
         r.expectFromMod("com.zarkonnen.airships.Main", "migrated entrypoint (uses Lwjgl3Engine)");
         r.expectFromMod("com.zarkonnen.airships.AirshipGame", "migrated game class");
         r.expectFromMod("com.zarkonnen.airships.AGame", "migrated game class");
-        r.expectFromMod("com.zarkonnen.airships.MyDraw", "migrated (GL calls via GLCompat)");
+        r.expectFromGame("com.zarkonnen.airships.MyDraw", "vanilla (diff was debug prints only)");
         r.expectFromMod("com.zarkonnen.airships.ShipLayers", "migrated game class");
         r.expectFromMod("org.json.JSONObject", "migrated (no sun.misc dependency)");
 
@@ -104,7 +104,7 @@ public final class EngineClassResolver {
         r.expectFromGame("com.zarkonnen.airships.BeamLayer", "vanilla");
         r.expectFromGame("com.zarkonnen.airships.Particle", "vanilla");
         // LightMapLayer 仍由本 MOD 提供：它的迁移版多调一次 Graphics.flush()，路由复现不了。
-        r.expectFromMod("com.zarkonnen.airships.LightMapLayer", "migrated (adds Graphics.flush())");
+        r.expectFromGame("com.zarkonnen.airships.LightMapLayer", "vanilla + LightMapLayerMixin (flush)");
 
         // ---- 4b. 迁移没有实际改动的游戏类必须仍由游戏 jar 提供 ----
         // 这是回归保护：本 MOD 只接管真正变过的类，不再整包发布游戏源码。

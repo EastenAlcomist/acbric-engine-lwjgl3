@@ -6,6 +6,9 @@
   "license": "MIT",
   "description": "Ships the Slick2D/LWJGL2 -> LWJGL3 engine migration for Airships: Conquer the Skies as an Acbric mod. Its jar shadows the vanilla game, Slick2D and LWJGL2 classes with the migrated LWJGL3 implementations. / 把《Airships: Conquer the Skies》的 Slick2D/LWJGL2 到 LWJGL3 引擎迁移版作为 Acbric MOD 交付：jar 内的类压过原版游戏、Slick2D 与 LWJGL2 的同名类。",
   "environment": "client",
+  "mixins": [
+    "acbric-engine-lwjgl3.mixins.json"
+  ],
   "entrypoints": {
     "preLaunch": [
       "net.fabricacs.engine.EngineBootstrap"
