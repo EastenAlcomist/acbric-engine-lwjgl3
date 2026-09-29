@@ -1,0 +1,234 @@
+// Acbric LWJGL3 Engine —— 独立 MOD 工程。
+//
+// 职责：把《Airships: Conquer the Skies》的 Slick2D / LWJGL2 引擎迁移版（LWJGL3）作为一个
+// Acbric MOD 交付。MOD JAR 里的类会**压过**游戏类、slick.jar、lwjgl.jar 与 CatSlick.jar，
+// 因此游戏整体跑在 LWJGL3 之上，而不是原来的 Slick2D + LWJGL2。
+//
+// 本工程与其他功能 MOD 一样独立于 Acbric 框架仓库：只从本机读取框架发行与自有游戏文件，
+// 依赖路径不写入仓库，游戏/框架类不进入 MOD 源码发行包。
+plugins { id 'java' }
+
+group = 'net.fabricacs.engine'
+version = findProperty('modVersion') ?: '1.0.0'
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://maven.fabricmc.net/' }
+}
+
+// 机器相关路径只放在被 Git 排除的 local.properties；命令行 -P 优先。
+def localPaths = new Properties()
+if (file('local.properties').isFile()) file('local.properties').withReader('UTF-8') { localPaths.load(it) }
+def pathOption = { name -> findProperty(name) ?: localPaths.getProperty(name) }
+
+def frameworkDir = file(pathOption('frameworkDir') ?: 'missing-framework')
+def gameLibDir = file(pathOption('gameLibDir') ?: new File(frameworkDir, 'libs'))
+def instanceDir = file(pathOption('instanceDir') ?: new File(frameworkDir, 'game'))
+
+// 编译期依赖：Acbric API、Fabric Loader、游戏 class 与游戏自带库。
+def apiJar = new File(frameworkDir, 'build/libs/Acbric-1.0-SNAPSHOT-api-mod.jar')
+def loaderLibDir = new File(frameworkDir, 'build/dist/Acbric/loader-libs')
+def fabricLoaderJar = new File(loaderLibDir, 'fabric-loader-0.19.3.jar')
+def gameA = new File(gameLibDir, 'asplit-A.zip')
+def gameB = new File(gameLibDir, 'asplit-B.zip')
+
+// 与迁移工程一致的 LWJGL3；natives 按目标平台切换：
+//   -Pacbric.lwjglNatives=natives-linux / natives-macos / natives-macos-arm64
+def lwjglVersion = '3.4.2'
+def lwjglNatives = (findProperty('acbric.lwjglNatives') ?: 'natives-windows').toString()
+
+// LWJGL3 是唯一必须打进 MOD JAR 的第三方运行时：它要压过 libs/lwjgl.jar（LWJGL2）的同名类，
+// 并从 classpath 自行解包 natives。
+configurations { lwjgl3 }
+
+dependencies {
+    compileOnly files(apiJar, fabricLoaderJar, gameA, gameB)
+
+    // 游戏自带库。LWJGL2 时代的 jar 必须排除：
+    // org.lwjgl.* 与 org.newdawn.slick.* 在 MOD 源码里是 LWJGL3 / 兼容层实现，
+    // 让 lwjgl.jar、slick.jar、CatSlick.jar 参与编译会让 javac 解析到旧类。
+    compileOnly fileTree(dir: gameLibDir, include: ['*.jar', '*.zip'], exclude: [
+            'fabric-loader-*.jar', 'lwjgl.jar', 'lwjgl_util.jar',
+            'slick.jar', 'CatSlick.jar', 'jinput.jar', 'ibxm.jar'])
+    compileOnly fileTree(dir: loaderLibDir, include: ['sponge-mixin-*.jar', 'asm-*.jar'])
+
+    lwjgl3 platform("org.lwjgl:lwjgl-bom:${lwjglVersion}")
+    lwjgl3 'org.lwjgl:lwjgl'
+    lwjgl3 'org.lwjgl:lwjgl-glfw'
+    lwjgl3 'org.lwjgl:lwjgl-opengl'
+    lwjgl3 'org.lwjgl:lwjgl-openal'
+    lwjgl3 'org.lwjgl:lwjgl-stb'
+    lwjgl3 "org.lwjgl:lwjgl::${lwjglNatives}"
+    lwjgl3 "org.lwjgl:lwjgl-glfw::${lwjglNatives}"
+    lwjgl3 "org.lwjgl:lwjgl-opengl::${lwjglNatives}"
+    lwjgl3 "org.lwjgl:lwjgl-openal::${lwjglNatives}"
+    lwjgl3 "org.lwjgl:lwjgl-stb::${lwjglNatives}"
+}
+
+// LWJGL3 同时是编译依赖与唯一打进 JAR 的运行时：
+// 编译期必须让 org.lwjgl.* 解析到 LWJGL3，而不是游戏库里的 lwjgl.jar（LWJGL2）。
+sourceSets.main.compileClasspath += configurations.lwjgl3
+
+// 迁移版用 JDK 21 preview 的 FFM API 隐藏 Windows 任务栏，故本工程为 Java 21。
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+// 编译前先点名缺失依赖，复制本工程后不必靠 javac 报错猜路径。
+tasks.register('verifyInputs') {
+    doLast {
+        def required = [apiJar, fabricLoaderJar, gameA, gameB]
+        def missing = required.findAll { !it.isFile() }
+        if (!loaderLibDir.isDirectory() || fileTree(dir: loaderLibDir, include: ['sponge-mixin-*.jar']).isEmpty()) {
+            missing.add(loaderLibDir)
+        }
+        if (!missing.isEmpty()) {
+            throw new GradleException(
+                    'Missing local dependencies / 缺少本地依赖:\n' +
+                            missing.collect { ' - ' + it.absolutePath }.join('\n') +
+                            '\n\nBuild the matching Acbric framework first, then set frameworkDir / gameLibDir ' +
+                            'in local.properties (see gradle.properties.example).' +
+                            '\n请先构建匹配的 Acbric 框架，并在 local.properties 指定 frameworkDir / gameLibDir。')
+        }
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    dependsOn tasks.named('verifyInputs')
+    options.encoding = 'UTF-8'
+    options.release = 21
+    // WindowsTaskbarFfm 使用 JDK 21 preview FFM；只有该 class 会被标记为 preview。
+    options.compilerArgs += ['--enable-preview']
+}
+
+// 着色器清单由目录内容生成，避免与实际携带的 GLSL 文件漂移。
+def engineShaderSrcDir = layout.projectDirectory.dir('src/main/resources/acbric_engine_data/shaders')
+def engineShaderManifestDir = layout.buildDirectory.dir('generated/engineShaderManifest')
+
+tasks.register('generateEngineShaderManifest') {
+    def srcDir = engineShaderSrcDir
+    def outDir = engineShaderManifestDir
+    inputs.dir(srcDir)
+    outputs.dir(outDir)
+    doLast {
+        def files = srcDir.asFile.listFiles()
+        if (files == null) {
+            throw new GradleException('shader source directory missing: ' + srcDir.asFile)
+        }
+        def names = files.findAll { it.isFile() && (it.name.endsWith('.vert') || it.name.endsWith('.frag')) }
+                .collect { it.name }.sort()
+        if (names.isEmpty()) {
+            throw new GradleException('no .vert/.frag files found in ' + srcDir.asFile)
+        }
+        def target = new File(outDir.get().asFile, 'acbric_engine_data/shaders')
+        delete(target)
+        target.mkdirs()
+        new File(target, 'shaders.list').text = names.join('\n') + '\n'
+        logger.lifecycle('engine shader manifest: ' + names.size() + ' files')
+    }
+}
+
+sourceSets.main.resources.srcDir(engineShaderManifestDir)
+tasks.named('processResources') {
+    dependsOn tasks.named('generateEngineShaderManifest')
+    inputs.property 'version', project.version
+    filesMatching('fabric.mod.json') { expand(version: project.version) }
+}
+
+// 自包含 MOD JAR：迁移后的引擎类 + 游戏类 + GLSL + LWJGL3 运行时（含 natives）。
+jar {
+    archiveBaseName = findProperty('modArchiveName') ?: 'acbric-engine-lwjgl3'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from('LICENSE') { into 'META-INF' }
+    from({ configurations.lwjgl3.collect { zipTree(it) } }) {
+        exclude 'META-INF/MANIFEST.MF'
+        exclude 'META-INF/INDEX.LIST'
+        exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA'
+        exclude 'module-info.class'
+        exclude 'META-INF/versions/*/module-info.class'
+    }
+}
+
+tasks.register('verifyInstallTarget') {
+    doLast {
+        if (!instanceDir.isDirectory()) {
+            throw new GradleException("instanceDir does not exist: ${instanceDir.absolutePath}\n" +
+                    'Set instanceDir in local.properties or pass -PinstanceDir=...')
+        }
+    }
+}
+
+tasks.register('installMod', Copy) {
+    group = 'acbric'
+    description = 'Builds this mod and copies it into the active instance MOD folder.'
+    dependsOn tasks.named('jar'), tasks.named('verifyInstallTarget')
+    from tasks.named('jar')
+    into new File(instanceDir, 'mods')
+    rename { (findProperty('modArchiveName') ?: 'acbric-engine-lwjgl3') + '.jar' }
+}
+
+// 无头自检：只跑 Fabric preLaunch（不创建窗口、不需要 GL 上下文），
+// 断言迁移版类确实压过原版类。退出码 0 = 通过。
+tasks.register('engineSelfTest', JavaExec) {
+    group = 'verification'
+    description = 'Runs the Fabric preLaunch engine class-resolution self-test (headless).'
+    dependsOn tasks.named('jar'), tasks.named('installMod')
+
+    workingDir = instanceDir
+    classpath = fileTree(dir: loaderLibDir, include: ['*.jar'])
+    mainClass = 'net.fabricmc.loader.impl.launch.knot.KnotClient'
+
+    jvmArgs '-Xmx2G', '-Dacbric.engine.selfTest=true', '-Dacbric.engine.strict=true', '-Dsteam=false',
+            '--enable-native-access=ALL-UNNAMED'
+    if (findProperty('acbric.enablePreview') != null) {
+        jvmArgs '--enable-preview'
+    }
+    // 可选：把静态数据目录（data/）与实例目录分开，例如实例在框架下、数据在别处。
+    // 与游戏自身的 -Dacs.staticdir 语义一致。
+    def staticDir = pathOption('staticDir')
+    if (staticDir) {
+        systemProperty 'acs.staticdir', file(staticDir).absolutePath
+    }
+    def nativeDir = new File(gameLibDir, 'native')
+    systemProperty 'org.lwjgl.librarypath', nativeDir.absolutePath
+    systemProperty 'net.java.games.input.librarypath', nativeDir.absolutePath
+    systemProperty 'java.library.path', nativeDir.absolutePath
+}
+
+// 安装 MOD 时会把旧固定管线着色器备份为 *.legacy-glsl.bak；本任务整体回退。
+tasks.register('restoreLegacyShaders') {
+    group = 'acbric'
+    description = 'Restores the pre-LWJGL3 GLSL shaders backed up by this mod.'
+    def dataDir = new File(instanceDir, 'data')
+    doLast {
+        if (!dataDir.isDirectory()) {
+            throw new GradleException('data directory not found: ' + dataDir)
+        }
+        def backups = dataDir.listFiles({ f -> f.isFile() && f.name.endsWith('.legacy-glsl.bak') } as FileFilter)
+        if (backups == null || backups.length == 0) {
+            logger.lifecycle('no *.legacy-glsl.bak found in ' + dataDir)
+            return
+        }
+        backups.each { b ->
+            def original = new File(dataDir, b.name.substring(0, b.name.length() - '.legacy-glsl.bak'.length()))
+            java.nio.file.Files.move(b.toPath(), original.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+            logger.lifecycle('restored ' + original.name)
+        }
+    }
+}
+
+tasks.register('printModInfo') {
+    group = 'acbric'
+    description = 'Prints the resolved paths and versions used by this project.'
+    doLast {
+        println "modId=" + (findProperty('modId') ?: 'acbric_engine_lwjgl3')
+        println "modVersion=" + project.version
+        println "lwjglVersion=" + lwjglVersion
+        println "lwjglNatives=" + lwjglNatives
+        println "frameworkDir=" + frameworkDir.absolutePath
+        println "gameLibDir=" + gameLibDir.absolutePath
+        println "instanceDir=" + instanceDir.absolutePath
+    }
+}
