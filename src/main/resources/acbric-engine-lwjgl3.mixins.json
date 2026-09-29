@@ -4,6 +4,7 @@
   "package": "net.fabricacs.engine.mixin",
   "compatibilityLevel": "JAVA_17",
   "client": [
+    "AGameMixin",
     "LightMapLayerMixin"
   ],
   "injectors": {

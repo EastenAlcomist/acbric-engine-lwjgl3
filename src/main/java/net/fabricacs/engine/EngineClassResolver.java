@@ -94,7 +94,7 @@ public final class EngineClassResolver {
         // ---- 4a. 迁移改动过的游戏类必须由本 MOD 提供 ----
         r.expectFromMod("com.zarkonnen.airships.Main", "migrated entrypoint (uses Lwjgl3Engine)");
         r.expectFromMod("com.zarkonnen.airships.AirshipGame", "migrated game class");
-        r.expectFromMod("com.zarkonnen.airships.AGame", "migrated game class");
+        // AGame 已下沉到 AGameMixin（-Dacs.staticdir 覆盖）
         r.expectFromGame("com.zarkonnen.airships.MyDraw", "vanilla (diff was debug prints only)");
         // ShipLayers 已下沉到 GL 路由（见 docs/MIGRATION_PROVENANCE.md）
         r.expectFromMod("org.json.JSONObject", "migrated (no sun.misc dependency)");
@@ -104,6 +104,7 @@ public final class EngineClassResolver {
         r.expectFromGame("com.zarkonnen.airships.BeamLayer", "vanilla");
         r.expectFromGame("com.zarkonnen.airships.Particle", "vanilla");
         r.expectFromGame("com.zarkonnen.airships.ShipLayers", "vanilla (pure GL swap, routed)");
+        r.expectFromGame("com.zarkonnen.airships.AGame", "vanilla + AGameMixin (-Dacs.staticdir)");
         r.expectFromGame("com.zarkonnen.airships.StarsVisualLayer", "vanilla (pure GL swap, routed)");
         r.expectFromGame("com.zarkonnen.airships.WeatherVisualLayer", "vanilla (pure GL swap, routed)");
         r.expectFromGame("com.zarkonnen.airships.ShapeUtils", "vanilla");

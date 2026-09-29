@@ -1,5 +1,26 @@
 # 变更记录
 
+## 未发布：AGame 下沉到 mixin（15 → 14）
+
+`AGameMixin`：给原版 `AGame.getStaticGameDirectory()` 补 `-Dacs.staticdir` 覆盖分支
+（迁移版与原版在这个方法上只差这一处）。用 `@Inject(at = HEAD, cancellable = true)`，
+未设置属性时不干预。**纯行为注入、不新增成员**，因此不需要访问器接口——
+这是本轮验证通的第二种 mixin 形态。
+
+`ci-guards` 基线 15 → 14。剩余 14 个类全部是真实逻辑改动。
+
+### 剩余 14 个类的处理形态（本轮摸清）
+
+| 形态 | 类 | 做法 |
+|---|---|---|
+| **纯行为注入** | `AGame` ✅、`DiplomacyAI`、`StrategicScreen`、`Job` | `@Inject`/`@Redirect`，不需访问器接口 |
+| **新增成员** | `Keys`（`resetQueriedKeys()`）、`LaunchSettings`（`targetFPS`） | Mixin 只能加成员，调用方（本 MOD 自己的类）需改成经**访问器接口**调用 |
+| **引擎接线** | `AirshipGame`、`Main`、`Mod`、`Expansion`、`CombatSoundEffects` | 与 GL/引擎后端耦合，需逐个定注入点 |
+| **API 回填** | `BonusableValue`、`CityUpgradeType`、`FBOGraphicsFactory` | 与 1.2.15.x 的 API 落差相关，谨慎处理 |
+
+验证：构建通过；`engineSelfTest` PASS（`AGameMixin` 生效）；`ci-guards` PASS（基线 14）。
+**实机画面待用户复测**。
+
 ## 未发布：ShipLayers 下沉（16 → 15）
 
 `ShipLayers` 删除。依据：源码差异是纯 GL 换主（11 处），且它用到的 11 个 `GLCompat` 函数
