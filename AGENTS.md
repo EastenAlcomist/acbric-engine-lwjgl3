@@ -7,8 +7,9 @@
 ## 这个 MOD 不是普通功能 MOD
 
 它不做玩法扩展，而是**替换引擎**：jar 内提供 LWJGL3 后端、Slick2D 兼容层、
-LWJGL2 `Display`/`DisplayMode` shim，以及迁移**真正改过行为**的 33 个游戏类
-（原先 165 个里有 132 个编译产物等价，已改为使用游戏 jar 的版本）。
+LWJGL2 `Display`/`DisplayMode` shim、`GL11`/`GL20` **GL 路由 shim**，
+以及迁移**真正改过行为**的 19 个游戏类
+（原先 165 个里：132 个编译产物等价、14 个已改在引擎层解决，都改为使用游戏 jar 的版本）。
 装上它，游戏整体跑在 LWJGL3 上；卸掉它，游戏回到 Slick2D + LWJGL2。
 
 ## 机制（改代码前必须理解）
@@ -85,12 +86,14 @@ Fabric 一般不允许 MOD 覆盖游戏类，但这条启动链允许，且已�
 
 ## 纳管范围（改动前先看）
 
-本 MOD **只接管迁移真正改过行为的 33 个游戏类**，其余由游戏 jar 提供。
+本 MOD **只接管迁移真正改过行为、且无法在引擎层解决的 19 个游戏类**，其余由游戏 jar 提供。
 判定方法、分类结果与基线落差见 `docs/MIGRATION_PROVENANCE.md`。要点：
 
 - 想加类进 MOD，先按该文档的归一化流程跑一遍差异分类；无语义差异的类**不要**加回来。
 - **只带 import 改动的文件不能一律丢弃**：类型参与 cast 时字节码不同（`CombatSoundEffects`）。
-- 数量基线 33 由 `tools/ci-guards.sh` 守着；改动要同步基线数字与文档。
+- 数量基线 19 由 `tools/ci-guards.sh` 守着；改动要同步基线数字与文档。
+- **能下沉到引擎层的就不要写游戏类 mixin**：GL 那 14 个类就是这么消掉的
+  （见 `docs/MIGRATION_PROVENANCE.md` 的「GL 路由 shim」）。
 - **迁移源码是游戏 1.2.14，`asplit-*.zip` 是 1.2.15.x。** 机器上没有 1.2.14 的游戏文件
   （Steam 安装是 1.2.15.3）。这个落差**被接受**，不对齐。使用新版本才有的 API 时
   必须按字节码回填（已回填 `AirshipGame.getClient()`、`CityUpgradeType.defenceBudget`），
@@ -99,12 +102,10 @@ Fabric 一般不允许 MOD 覆盖游戏类，但这条启动链允许，且已�
   ① **基线保持 1.2.14，不反编译、不迁移基线**（2026-09-29 用户决定）。
   版本落差被接受：mixin 注入点**对着 `asplit-*.zip` 的字节码写**（`javap -p -c`），
   1.2.14 的源码差异只用来说明"想改什么"，不用来定位字节码；
-  ② GL 那 17 个类不写游戏 mixin，改为在 GL 层解决——用 ASM 生成一个
-  `org.lwjgl.opengl.GL11` shim，把 15 个函数路由到 `GLCompat`。
-  **注意递归陷阱**：`GLCompat` 目前用全限定名调真实 GL
-  （`GLCompat.java` 269/273/277/325 行的 `org.lwjgl.opengl.GL11.glEnable/glDisable/glBindTexture`），
-  shim 覆盖后必须改到未被覆盖的 `GL11C`，否则无限递归。另外 `GLCompat` 顶部有
-  `import static org.lwjgl.opengl.GL11.*;`，所以 shim 必须是 GL11 的完整面，不能只手写那 15 个函数。
+  ② GL 路由**已完成**（1.0.2）：`generateGlRoutingShims` 用 ASM 从 LWJGL3 复制
+  `GL11`/`GL20`，只改写 **14 个方法**（GL11 上 10 个、GL20 上 4 个）转 `GLCompat`；
+  对应的 14 个游戏类已删除。**递归守卫**：`GLCompat` 必须通过未被覆盖的 `GL11C` 调真实 GL，
+  `ci-guards.sh` 有专门检查。改路由表要同步 `docs/MIGRATION_PROVENANCE.md` 与守卫注释。
 
 ## 陷阱
 

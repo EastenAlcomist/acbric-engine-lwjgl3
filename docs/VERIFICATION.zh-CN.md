@@ -85,6 +85,25 @@ backups: 36
 对照：加入着色器安装**之前**，同一路径下有 4 处 `SlickException: Unable to load shader program`
 （`RotatingColoringShader.lockShader`、`Appearance.lockMaskedBevelledShader`）。
 
+## 五·补、GL 路由（1.0.2）
+
+`generateGlRoutingShims` 从 LWJGL3 复制 `GL11`/`GL20` 并改写 14 个方法后：
+
+| 检查 | 结果 |
+|---|---|
+| 构建日志 | `GL routing shims: 14 methods routed to GLCompat`；描述符少一个即构建失败 |
+| `javap GL11.glBegin` | 已非 native，方法体为 `invokestatic GLCompat.glBegin:(I)V` + `return` |
+| `javap GL11.glBindTexture` | `invokestatic GLCompat.glBindTexture:(II)V` |
+| `javap GL20.glVertexAttrib1f` | `invokestatic GLCompat.glVertexAttrib1f:(IF)V` |
+| `javap GL11.glBlendFunc`（未被路由） | 保持原样，未被动过 |
+| `javap GL11C.glEnable` | 仍是 LWJGL3 原件（`public static native`），未被覆盖 |
+| `ci-guards.sh` | GLCompat 未用全限定名调被路由函数；且确实通过 GL11C 调真实 GL |
+| `engineSelfTest` | PASS；GL11/GL20 来自本 MOD、GL11C 来自 LWJGL3 jar |
+| 实机启动 95 秒 | `log.txt` **0 异常**，`main menu inited`、OpenAL 正常、FBO 检查通过 |
+
+删除 14 个渲染类后该次启动没有出现任何渲染相关报错；但**只到主菜单与数据加载**，
+未进入战斗场景，因此船体/光照/粒子这些重度依赖批渲染仿真的路径仍未验证（见下节）。
+
 ## 六、未覆盖范围（不要据此下结论）
 
 - **画面与迁移前的一致性没有逐帧比对**：只确认了不崩、无着色器报错。

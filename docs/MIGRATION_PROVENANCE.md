@@ -13,7 +13,7 @@
 | `com/zarkonnen/catengine/lwjgl3/**` | 11 | 迁移新增的 LWJGL3 后端（引擎主循环、GLCompat、Tex、GlProgram、Framebuffer、OpenAL 音频…） |
 | `org/newdawn/slick/**` | 21 | 手写 Slick2D 兼容层，**取代 `libs/slick.jar`** |
 | `org/lwjgl/opengl/{Display,DisplayMode}.java` | 2 | LWJGL2 `Display`/`DisplayMode` shim（委托 GLFW） |
-| `com/zarkonnen/airships/**` | **33** | 迁移**真正改过行为**的游戏类（详见下节；其余 132 个编译产物等价，改用游戏 jar 的版本） |
+| `com/zarkonnen/airships/**` | **19** | 迁移**真正改过行为、且无法在引擎层解决**的游戏类（GL 那 14 个已改由 GL 路由 shim 处理） |
 | `org/json/{JSONObject,JSONArray}.java` | 2 | 迁移改动过（去掉 `sun.misc.FloatingDecimal2`） |
 | `net/fabricacs/engine/**` | 4 | **新增**：Acbric 侧入口、自检、类解析诊断、着色器安装器 |
 | `src/main/resources/acbric_engine_data/shaders/*` | 36 | **新增**：`#version 330 core` 版 GLSL（来自 `ACSExpend/src/data/`），随 jar 携带、启动时装进实例的 `data/` |
@@ -39,7 +39,7 @@
 
 | 子类 | 文件数 | 说明 |
 |---|---:|---|
-| 仅 GL 路由（`GL11.x`→`GLCompat.x`） | 17 | 涉及的全部 GL 函数只有 15 个：`glBindTexture`、`glBegin/glEnd`、`glVertex2d/2f`、`glTexCoord2d`、`glColor3f/4f`、`glEnable/glDisable`、`glVertexAttrib1f/2f/3f/4f` |
+| ~~仅 GL 路由~~ | ~~14~~ | **已从 MOD 删除**，改由 GL 路由 shim 在引擎层解决（见下节） |
 | 引擎/输入接线（`SlickEngine`→`Lwjgl3Engine` 等） | 6 | `AirshipGame`、`Main`、`Mod`、`Expansion`、`CombatSoundEffects`、`FBOGraphicsFactory` |
 | 迁移期缺陷修复 | 10 | `AGame`（`-Dacs.staticdir`）、`LaunchSettings`（`targetFPS`）、`Keys`（`resetQueriedKeys`）等 |
 
@@ -47,6 +47,40 @@
 > （`SlickEngine` → `Lwjgl3Engine`），但那个类型参与了 cast，
 > `((SlickEngine.MyInput) in).typedText()` 会编译成指向不同 owner 的 `checkcast`。
 > 这类文件必须留下——`StarsVisualLayer`、`TextField`、`WeatherVisualLayer` 同理。
+
+### GL 路由 shim：把 14 个类的 GL 改动搬到引擎层
+
+那 14 个类原本只做一件事：把 `GL11.x` / `GL20.x` 换成 `GLCompat.x`。涉及的函数精确到
+**14 个**（源码扫描得出，不是估算）：
+
+| 宿主类 | 函数 |
+|---|---|
+| `GL11` | `glBegin` `glEnd` `glVertex2d` `glVertex2f` `glTexCoord2d` `glColor3f` `glColor4f` `glBindTexture` `glEnable` `glDisable` |
+| `GL20` | `glVertexAttrib1f` `glVertexAttrib2f` `glVertexAttrib3f` `glVertexAttrib4f` |
+
+常量（`GL_TEXTURE_2D` / `GL_QUADS` / `GL_TRIANGLES`）是编译期内联的整数，不需要处理。
+
+做法（Gradle 任务 `generateGlRoutingShims`）：从 LWJGL3 的
+`lwjgl-opengl-3.4.2.jar` 取出 `org/lwjgl/opengl/GL11.class` 与 `GL20.class`，
+用 ASM 只把这 14 个方法的字节码换成 `invokestatic GLCompat.<同名同签名>`，
+其余（含 `native` 方法、`<clinit>`、常量、注解）原样保留，**类名不变**所以 JNI 绑定不受影响。
+生成物排在 `zipTree(lwjgl3)` 之前，因此在 jar 里胜出。
+
+三个必须注意的点：
+
+1. **递归陷阱**：`GLCompat` 原本用全限定名调真实 GL
+   （`GL11.glEnable` / `glDisable` / `glBindTexture`，4 处）。GL11 被覆盖后这些调用会转回
+   `GLCompat` 自己 → 无限递归。已全部改到**未被覆盖**的 `GL11C`。
+   `tools/ci-guards.sh` 有专门的守卫盯着这条。
+2. **shim 必须是完整面**：`GLCompat` 顶部有 `import static org.lwjgl.opengl.GL11.*;`，
+   未被路由的函数（`glGenBuffers`、`glBufferData`、`glDrawArrays` …）仍要能解析，
+   所以是整类复制后改 14 个方法，不是只手写 14 个。
+3. **生成期校验**：任务会核对 14 个方法的描述符是否都在目标 class 里命中，
+   少一个就构建失败——避免 LWJGL3 版本变动导致静默漏路由。
+
+效果：那 14 个类**从 MOD 中删除**，纳管数 33 → **19**；原版游戏类一行不用改，
+也不需要在这些类上写任何 mixin（`Appearance` / `ShipLayers` 这些被其他 MOD 占用的
+注入点因此完全没被碰）。
 
 ### 迁移改动分类（差异分析结论）
 

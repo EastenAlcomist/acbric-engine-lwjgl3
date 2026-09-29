@@ -266,15 +266,17 @@ public final class GLCompat {
 	// ---- 状态转发（拦截纹理启用/绑定/程序） ----
 	public static void glEnable(int cap) {
 		if (cap == 0x0DE1) { tex2dEnabled = true; return; } // GL_TEXTURE_2D
-		org.lwjgl.opengl.GL11.glEnable(cap);
+		// 用 GL11C 而不是 GL11：本 MOD 会用同名 shim 覆盖 GL11 并把 glEnable 路由回本类，
+		// 这里若写 GL11 就会无限递归。
+		org.lwjgl.opengl.GL11C.glEnable(cap);
 	}
 	public static void glDisable(int cap) {
 		if (cap == 0x0DE1) { tex2dEnabled = false; return; }
-		org.lwjgl.opengl.GL11.glDisable(cap);
+		org.lwjgl.opengl.GL11C.glDisable(cap);
 	}
 	public static void glBindTexture(int target, int texture) {
 		boundTexture = texture;
-		org.lwjgl.opengl.GL11.glBindTexture(target, texture);
+		org.lwjgl.opengl.GL11C.glBindTexture(target, texture);
 	}
 	public static void glUseProgram(int program) {
 		currentProgram = program;
@@ -322,7 +324,7 @@ public final class GLCompat {
 			// 批着色器固定采样单元 0：把当前记录纹理重新绑到单元 0
 			// （游戏可能在其它单元上绑定过纹理，此处确保单元 0 就是当前纹理）
 			glActiveTexture(GL_TEXTURE0);
-			org.lwjgl.opengl.GL11.glBindTexture(GL_TEXTURE_2D, boundTexture);
+			org.lwjgl.opengl.GL11C.glBindTexture(GL_TEXTURE_2D, boundTexture);
 		}
 
 		glBindVertexArray(vao);
