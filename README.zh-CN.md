@@ -66,6 +66,24 @@ KnotClassLoader 的 URL 顺序（先 → 后，前者胜）
 | `instanceDir` | Fabric 实例的游戏目录；MOD 装进 `<instanceDir>/mods`，自检也在此运行。默认 `<frameworkDir>/game` |
 | `staticDir` | 可选。把 `data/` 与实例目录分开时指定，等价于游戏的 `-Dacs.staticdir` |
 
+### 启动游戏
+
+```powershell
+# 数据取 <instanceDir>/data
+.\gradlew.bat runGame
+
+# 数据在别处（等价游戏的 -Dacs.staticdir）
+.\gradlew.bat runGame -PstaticDir=C:/path/to/game-with-data
+
+# 进吸引模式：主菜单空闲 20 秒后自动演示编辑器
+.\gradlew.bat runGame -Pattract=1
+```
+
+任务会先检查数据目录存在，缺失时直接报错并给出修法。
+`instanceDir` 默认是 `<frameworkDir>/game`，MOD 装进它的 `mods/`。
+
+### 构建与验证
+
 ```powershell
 .\gradlew.bat verifyInputs          # 先点名缺失依赖，不用靠 javac 报错猜
 .\gradlew.bat build                 # 编译 + 打自包含 MOD JAR

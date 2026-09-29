@@ -1,5 +1,23 @@
 # 变更记录
 
+## 未发布：回退 GL 路由
+
+**1.0.2 的 GL 路由（`GL11`/`GL20` shim）已回退**，回到 33 类版。原因：用户实测
+**战斗界面不渲染**，而编辑器界面正常。回退后自检 PASS、编辑器界面渲染正常。
+
+GL 路由的动机仍然成立（避免给 14 个类写几百个 mixin），但它的语义等价性**没有成立**：
+
+- `GLCompat.writeAttrib` 会**丢弃 `index < 1000` 的写入**，而 `GL20.glVertexAttrib*` 从原版
+  游戏类传进来的是**真实 GL 属性位置**；假位置（`1000 + slot*4 + off`）只有迁移版代码
+  通过 `GlProgram.getAttributeID` 才会产生。
+- 迁移版 `Appearance` 里有一处**新增**调用 `sublsp.enableVertexAttribute("strength")`，
+  说明兼容层需要显式启用属性槽位——这条状态维护在 vanilla 类里没人做。
+
+**重新尝试路由前必须先解决这两点**，并且要有能覆盖船体渲染的验证手段
+（吸引模式只到编辑器，船还没加载出来；需要一个能进战斗的自动抓图流程）。
+
+分析结论保留在 `docs/MIGRATION_PROVENANCE.md` 与 `docs/REBASELINE_PLAN.zh-CN.md`。
+
 ## 1.0.1
 
 **收窄纳管的游戏源码：165 → 33 个类。**
