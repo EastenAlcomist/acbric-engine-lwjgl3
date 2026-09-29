@@ -1,0 +1,34 @@
+.gradle/
+build/
+out/
+
+# 本机私有路径与依赖，绝不提交。
+libs/
+local.properties
+gradle.properties
+*.log
+
+# 本地游戏、依赖与运行用户数据不得分发。
+game/
+userdata/
+runtime/
+*.class
+*.jar
+*.zip
+*.7z
+*.exe
+*.dll
+!gradle/wrapper/gradle-wrapper.jar
+
+.env
+.env.*
+.idea/
+.vscode/
+*.iml
+.classpath
+.project
+.settings/
+__pycache__/
+*.py[cod]
+.DS_Store
+Thumbs.db

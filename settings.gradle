@@ -1,0 +1,2 @@
+// 独立 MOD 工程，不参与 Acbric 框架的 source set 或默认发行包。
+rootProject.name = 'acbric-engine-lwjgl3'

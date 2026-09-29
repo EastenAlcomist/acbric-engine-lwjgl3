@@ -1,0 +1,16 @@
+# Windows 编写的跨平台工程：统一换行。
+* text=auto
+
+# Gradle wrapper 与 shell 脚本保持 LF，否则 Linux/macOS 会报 bad interpreter。
+gradlew  text eol=lf
+*.sh     text eol=lf
+
+# Windows 启动脚本保持 CRLF。
+*.bat    text eol=crlf
+*.cmd    text eol=crlf
+
+# 二进制资源不做换行转换。
+*.jar   binary
+*.zip   binary
+*.png   binary
+*.dll   binary

@@ -1,0 +1,19 @@
+# 复制为 gradle.properties 后按本机情况修改；gradle.properties 已被 .gitignore 排除。
+# 使用正斜杠。见 README.zh-CN.md 的「构建」一节。
+
+# ---- JDK ---------------------------------------------------------------
+# 本工程需要 JDK 21（迁移版用 JDK 21 preview 的 FFM API）。
+# 若系统 PATH 上的 java 不是 21，把 Gradle 守护进程钉到 JDK 21：
+org.gradle.java.home=C:/Program Files/Java/jdk-21
+
+# ---- 外部依赖路径 ------------------------------------------------------
+# Acbric 框架工作副本（需已构建出 build/libs/*-api-mod.jar 与 build/dist/Acbric/loader-libs）。
+frameworkDir=C:/Users/AlchemistCat/Desktop/Acbric-framework
+# 游戏库目录（asplit-A.zip / asplit-B.zip 等），来自自有游戏安装；默认取 <frameworkDir>/libs。
+# gameLibDir=C:/Users/AlchemistCat/Desktop/Acbric-framework/libs
+# 安装目标：Fabric 实例的游戏目录，MOD 会装进 <instanceDir>/mods，自检也在此目录运行。
+# 默认取 <frameworkDir>/game。
+# instanceDir=C:/Users/AlchemistCat/Desktop/Acbric-framework/game
+
+# ---- MOD 元数据（可选）-------------------------------------------------
+# modVersion=1.0.0
