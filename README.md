@@ -126,6 +126,7 @@ Drop `<instanceDir>/mods/acbric-engine-lwjgl3.jar` into a Fabric instance. At st
 | [docs/ENGINE_LWJGL3.md](docs/ENGINE_LWJGL3.md) / [中文](docs/ENGINE_LWJGL3.zh-CN.md) | Architecture, mechanism, compatibility, troubleshooting |
 | [docs/VERIFICATION.md](docs/VERIFICATION.md) / [中文](docs/VERIFICATION.zh-CN.md) | Measured evidence and untested scope |
 | [docs/RELEASING.md](docs/RELEASING.md) / [中文](docs/RELEASING.zh-CN.md) | Release flow: why a hosted runner cannot build, the three routes, versioning |
+| [docs/REBASELINE_PLAN.md](docs/REBASELINE_PLAN.md) / [中文](docs/REBASELINE_PLAN.zh-CN.md) | **TODO**: rebase onto game 1.2.15.2, move GL routing to the GL layer, mixin the rest |
 | [docs/MIGRATION_PROVENANCE.md](docs/MIGRATION_PROVENANCE.md) | Origin, included scope, the one structural change |
 | [docs/MIGRATION_FILES.txt](docs/MIGRATION_FILES.txt) | Byte-wise diff against the pre-migration source |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Environment and pre-PR checks |

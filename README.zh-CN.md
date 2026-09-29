@@ -47,7 +47,9 @@ KnotClassLoader 的 URL 顺序（先 → 后，前者胜）
 | LWJGL3 3.4.2（API + natives） | — | 并入 MOD JAR，LWJGL3 从 classpath 自行解包 natives |
 | `acbric_engine_data/shaders/*` | 36 | `#version 330 core` GLSL，preLaunch 装进实例的 `data/` |
 
-其余 466 个 `com.zarkonnen.airships` 类与原版逐字节相同，**不在 MOD 里**，仍由 `asplit-*.zip` 提供。
+其余 598 个 `com.zarkonnen.airships` 类（466 个与原版逐字节相同 + 132 个编译产物等价）
+**不在 MOD 里**，仍由 `asplit-*.zip` 提供。目标是把剩下这 33 个也降到 0，
+路线见 [docs/REBASELINE_PLAN.zh-CN.md](docs/REBASELINE_PLAN.zh-CN.md)。
 逐字节差异清单见 [`docs/MIGRATION_FILES.txt`](docs/MIGRATION_FILES.txt)，来源与改造理由见
 [`docs/MIGRATION_PROVENANCE.md`](docs/MIGRATION_PROVENANCE.md)。
 
@@ -116,6 +118,7 @@ KnotClassLoader 的 URL 顺序（先 → 后，前者胜）
 | [docs/ENGINE_LWJGL3.zh-CN.md](docs/ENGINE_LWJGL3.zh-CN.md) / [EN](docs/ENGINE_LWJGL3.md) | 架构、机制、兼容性、排查表 |
 | [docs/VERIFICATION.zh-CN.md](docs/VERIFICATION.zh-CN.md) / [EN](docs/VERIFICATION.md) | 实测证据与未覆盖范围 |
 | [docs/RELEASING.zh-CN.md](docs/RELEASING.zh-CN.md) / [EN](docs/RELEASING.md) | 发布流程：为什么 CI 托管 runner 构建不了、三条路线、版本号规则 |
+| [docs/REBASELINE_PLAN.zh-CN.md](docs/REBASELINE_PLAN.zh-CN.md) / [EN](docs/REBASELINE_PLAN.md) | **待办**：把迁移基线重置到游戏 1.2.15.2、GL 路由改到 GL 层、剩余类 mixin 化 |
 | [docs/MIGRATION_PROVENANCE.md](docs/MIGRATION_PROVENANCE.md) | 来源、纳入范围、唯一一处结构性改造 |
 | [docs/MIGRATION_FILES.txt](docs/MIGRATION_FILES.txt) | 与迁移前原版的逐字节差异清单 |
 | [CONTRIBUTING.zh-CN.md](CONTRIBUTING.zh-CN.md) | 环境与提交前检查 |

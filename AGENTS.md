@@ -95,6 +95,14 @@ Fabric 一般不允许 MOD 覆盖游戏类，但这条启动链允许，且已�
   必须按字节码回填（已回填 `AirshipGame.getClient()`、`CityUpgradeType.defenceBudget`），
   否则 1.2.15.2 的类会 `NoSuchMethodError` / `NoSuchFieldError`。
   把改动转成 mixin 之前必须先解决这个落差。
+- **已定的两项方向**（细节与步骤见 `docs/REBASELINE_PLAN.zh-CN.md`）：
+  ① 把迁移基线重置到游戏 1.2.15.2（用 asplit 反编译出的源码重做差异分类）；
+  ② GL 那 17 个类不写游戏 mixin，改为在 GL 层解决——用 ASM 生成一个
+  `org.lwjgl.opengl.GL11` shim，把 15 个函数路由到 `GLCompat`。
+  **注意递归陷阱**：`GLCompat` 目前用全限定名调真实 GL
+  （`GLCompat.java` 269/273/277/325 行的 `org.lwjgl.opengl.GL11.glEnable/glDisable/glBindTexture`），
+  shim 覆盖后必须改到未被覆盖的 `GL11C`，否则无限递归。另外 `GLCompat` 顶部有
+  `import static org.lwjgl.opengl.GL11.*;`，所以 shim 必须是 GL11 的完整面，不能只手写那 15 个函数。
 
 ## 陷阱
 
