@@ -7,8 +7,9 @@
 ## 这个 MOD 不是普通功能 MOD
 
 它不做玩法扩展，而是**替换引擎**：jar 内提供 LWJGL3 后端、Slick2D 兼容层、
-LWJGL2 `Display`/`DisplayMode` shim，以及迁移**真正改过行为**的 33 个游戏类
-（原先 165 个里有 132 个编译产物等价，已改为使用游戏 jar 的版本）。
+LWJGL2 `Display`/`DisplayMode` shim、`GL11`/`GL20` **GL 路由 shim**，
+以及迁移**真正改过行为**的 23 个游戏类
+（原先 165 个里：132 个编译产物等价、10 个是纯 GL 换主已下沉到路由，都用游戏 jar 的版本）。
 装上它，游戏整体跑在 LWJGL3 上；卸掉它，游戏回到 Slick2D + LWJGL2。
 
 ## 机制（改代码前必须理解）
@@ -85,12 +86,21 @@ Fabric 一般不允许 MOD 覆盖游戏类，但这条启动链允许，且已�
 
 ## 纳管范围（改动前先看）
 
-本 MOD **只接管迁移真正改过行为的 33 个游戏类**，其余由游戏 jar 提供。
+本 MOD **只接管迁移真正改过行为的 23 个游戏类**，其余由游戏 jar 提供。
 判定方法、分类结果与基线落差见 `docs/MIGRATION_PROVENANCE.md`。要点：
 
 - 想加类进 MOD，先按该文档的归一化流程跑一遍差异分类；无语义差异的类**不要**加回来。
 - **只带 import 改动的文件不能一律丢弃**：类型参与 cast 时字节码不同（`CombatSoundEffects`）。
-- 数量基线 33 由 `tools/ci-guards.sh` 守着；改动要同步基线数字与文档。
+- 数量基线 23 由 `tools/ci-guards.sh` 守着；改动要同步基线数字与文档。
+- **把某个类下沉到引擎层之前，必须先做字节码对比**：对 vanilla（`asplit-*.zip`）与迁移版
+  分别 `javap -p -c`，取 `Method`/`Field` 引用集合做差。
+  **只有"纯 GL 换主"（差异仅为 `GL11.x`/`GL20.x` → `GLCompat.x`，外加迁移版新增的调试打印）
+  才能靠调用路由复现。**
+  实测教训：`LightMapLayer` 的迁移版多调了一次 `org.newdawn.slick.Graphics.flush()`，
+  整批路由后**战斗画面全空而编辑器正常**——光照层只在战斗路径上跑。
+  同理，属性那条线（`getAttributeID`/`enableVertexAttribute`）vanilla 与迁移版**调用一致**，
+  不是差异来源，不要再往那个方向查。
+- **渲染改动的验收必须进战斗**，不能只看编辑器（编辑器不跑光照层与船体属性路径）。
 - **迁移源码是游戏 1.2.14，`asplit-*.zip` 是 1.2.15.x。** 机器上没有 1.2.14 的游戏文件
   （Steam 安装是 1.2.15.3）。这个落差**被接受**，不对齐。使用新版本才有的 API 时
   必须按字节码回填（已回填 `AirshipGame.getClient()`、`CityUpgradeType.defenceBudget`），

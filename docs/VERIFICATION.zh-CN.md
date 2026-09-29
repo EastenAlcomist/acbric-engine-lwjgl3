@@ -109,6 +109,11 @@ backups: 36
 | 33 类版 | `96c269a` / 回退后 `a589181` | 33 | 正常 | **用户实测正常** |
 | 19 类版（含 GL 路由） | `a0f979c` | 19 | 正常 | **用户实测不渲染** |
 
+**后续（同日晚）**：按字节码调研结论改为**只路由纯 GL 换主的 10 个类**、
+把 `LightMapLayer` 留在 MOD 里（23 类），用户实测**战斗界面正常**。
+至此根因确认：**整批路由会破坏战斗渲染，选择性路由不会**，差异就是 `LightMapLayer`
+那一处 `Graphics.flush()`。
+
 结论：**GL 路由破坏了船体渲染**，已回退。根因分析见 `docs/REBASELINE_PLAN.zh-CN.md`
 「决定 2」下的修订说明：`GLCompat.writeAttrib` 丢弃 `index < 1000` 的写入，
 而原版类传入的是真实 GL 属性位置；且属性槽位的 `enableVertexAttribute` 状态

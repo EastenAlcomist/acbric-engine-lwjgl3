@@ -15,7 +15,8 @@
   `RotatingShader`/`BeamLayer`/`Particle` 必须来自游戏 jar，`LightMapLayer` 必须来自本 MOD。
 - `ci-guards` 纳管基线 33 → 23。
 
-**待用户实机验证战斗界面。** 上一次整批路由就是在这一步失败的。
+**用户实机验证：战斗界面正常。** 至此确认——整批路由（19 类）会破坏战斗渲染、
+选择性路由（23 类）不会；根因就是 `LightMapLayer` 那一处 `Graphics.flush()`。
 
 ## 未发布：回退 GL 路由
 
