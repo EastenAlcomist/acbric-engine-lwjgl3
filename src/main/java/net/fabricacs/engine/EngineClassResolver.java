@@ -99,6 +99,13 @@ public final class EngineClassResolver {
         r.expectFromMod("com.zarkonnen.airships.ShipLayers", "migrated game class");
         r.expectFromMod("org.json.JSONObject", "migrated (no sun.misc dependency)");
 
+        // 纯 GL 换主的类已删除，必须回到游戏 jar。
+        r.expectFromGame("com.zarkonnen.airships.RotatingShader", "vanilla (pure GL swap, routed)");
+        r.expectFromGame("com.zarkonnen.airships.BeamLayer", "vanilla");
+        r.expectFromGame("com.zarkonnen.airships.Particle", "vanilla");
+        // LightMapLayer 仍由本 MOD 提供：它的迁移版多调一次 Graphics.flush()，路由复现不了。
+        r.expectFromMod("com.zarkonnen.airships.LightMapLayer", "migrated (adds Graphics.flush())");
+
         // ---- 4b. 迁移没有实际改动的游戏类必须仍由游戏 jar 提供 ----
         // 这是回归保护：本 MOD 只接管真正变过的类，不再整包发布游戏源码。
         // 一旦有人把这些类又拷回 MOD，或者把模块 jar 放到了游戏 jar 前面，
@@ -112,9 +119,13 @@ public final class EngineClassResolver {
         r.expectFromGame("com.zarkonnen.airships.Server", "vanilla");
 
         // ---- 5. LWJGL3 运行时必须来自 LWJGL3，而不是 lwjgl.jar(LWJGL2) ----
-        r.expectLwjgl3("org.lwjgl.opengl.GL11");
+        // GL11 / GL20 由本 MOD 的 GL 路由 shim 提供（把 14 个函数转到 GLCompat）；
+        // GL11C 必须仍是 LWJGL3 原件——shim 与 GLCompat 都靠它调真实 GL，
+        // 一旦它也被覆盖就会无限递归。
+        r.expectFromMod("org.lwjgl.opengl.GL11", "GL routing shim (10 funcs -> GLCompat)");
+        r.expectFromMod("org.lwjgl.opengl.GL20", "GL routing shim (4 funcs -> GLCompat)");
+        r.expectLwjgl3("org.lwjgl.opengl.GL11C");
         r.expectLwjgl3("org.lwjgl.opengl.GL13");
-        r.expectLwjgl3("org.lwjgl.opengl.GL20");
         r.expectLwjgl3("org.lwjgl.opengl.GL30");
         r.expectLwjgl3("org.lwjgl.glfw.GLFW");
         r.expectLwjgl3("org.lwjgl.stb.STBImage");

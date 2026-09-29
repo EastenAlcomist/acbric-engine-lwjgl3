@@ -6,6 +6,16 @@
 //
 // 本工程与其他功能 MOD 一样独立于 Acbric 框架仓库：只从本机读取框架发行与自有游戏文件，
 // 依赖路径不写入仓库，游戏/框架类不进入 MOD 源码发行包。
+// 构建期需要 ASM 来生成 GL 路由 shim（见 generateGlRoutingShims）。
+buildscript {
+    repositories { mavenCentral() }
+    dependencies {
+        classpath 'org.ow2.asm:asm:9.8'
+        // org.objectweb.asm.tree.* 在 asm-tree 里，不在核心 asm 包里
+        classpath 'org.ow2.asm:asm-tree:9.8'
+    }
+}
+
 plugins { id 'java' }
 
 group = 'net.fabricacs.engine'
@@ -131,8 +141,107 @@ tasks.register('generateEngineShaderManifest') {
 }
 
 sourceSets.main.resources.srcDir(engineShaderManifestDir)
+
+// ---- GL 路由 shim ----------------------------------------------------------
+// 把"纯 GL 换主"的 10 个游戏类里的 GL11.x / GL20.x 调用搬到引擎层：
+// 从 LWJGL3 复制 GL11/GL20，只把这 14 个方法的字节码换成
+// invokestatic GLCompat.<同名同签名>，其余（含 native 方法与 <clinit>）原样保留。
+// 类名不变 ⇒ JNI 绑定不受影响；游戏类一行不用改。
+//
+// 只对"纯 GL 换主"的类成立：按 javap 方法引用集合逐类对比确认过。
+// **LightMapLayer 不适用**——它的迁移版多调了一次 Graphics.flush()，靠路由复现不了，
+// 所以它继续以源码形式留在 MOD 里。详见 docs/REBASELINE_PLAN.zh-CN.md「二·补」。
+def glRouting = [
+        'org/lwjgl/opengl/GL11': [
+                'glBegin'      : '(I)V',
+                'glEnd'        : '()V',
+                'glVertex2d'   : '(DD)V',
+                'glVertex2f'   : '(FF)V',
+                'glTexCoord2d' : '(DD)V',
+                'glColor3f'    : '(FFF)V',
+                'glColor4f'    : '(FFFF)V',
+                'glBindTexture': '(II)V',
+                'glEnable'     : '(I)V',
+                'glDisable'    : '(I)V',
+        ],
+        'org/lwjgl/opengl/GL20': [
+                'glVertexAttrib1f': '(IF)V',
+                'glVertexAttrib2f': '(IFF)V',
+                'glVertexAttrib3f': '(IFFF)V',
+                'glVertexAttrib4f': '(IFFFF)V',
+        ],
+]
+def glRoutingOutDir = layout.buildDirectory.dir('generated/glRouting')
+
+tasks.register('generateGlRoutingShims') {
+    description = 'Rewrites LWJGL3 GL11/GL20 so the migrated GL calls route into GLCompat.'
+    def outDir = glRoutingOutDir
+    def lwjglJars = configurations.lwjgl3
+    inputs.files(lwjglJars)
+    inputs.property 'routing', glRouting.toString()
+    outputs.dir(outDir)
+    doLast {
+        def dest = outDir.get().asFile
+        delete(dest)
+        int routedTotal = 0
+        glRouting.each { String className, Map<String, String> methods ->
+            byte[] original = null
+            lwjglJars.files.each { jar ->
+                if (original != null) return
+                new java.util.zip.ZipFile(jar).withCloseable { zf ->
+                    def e = zf.getEntry(className + '.class')
+                    if (e != null) original = zf.getInputStream(e).bytes
+                }
+            }
+            if (original == null) {
+                throw new GradleException('GL routing: ' + className + ' not found in the LWJGL3 jars')
+            }
+            def node = new org.objectweb.asm.tree.ClassNode()
+            new org.objectweb.asm.ClassReader(original).accept(node, 0)
+            int routed = 0
+            node.methods.each { m ->
+                if (methods[m.name] == m.desc) {
+                    // native / abstract 方法没有字节码，注入前必须去掉这两个标志
+                    m.access = (m.access & ~org.objectweb.asm.Opcodes.ACC_NATIVE) & ~org.objectweb.asm.Opcodes.ACC_ABSTRACT
+                    m.instructions.clear()
+                    m.tryCatchBlocks.clear()
+                    if (m.localVariables != null) m.localVariables.clear()
+                    int slot = 0
+                    org.objectweb.asm.Type.getArgumentTypes(m.desc).each { t ->
+                        m.instructions.add(new org.objectweb.asm.tree.VarInsnNode(t.getOpcode(org.objectweb.asm.Opcodes.ILOAD), slot))
+                        slot += t.getSize()
+                    }
+                    m.instructions.add(new org.objectweb.asm.tree.MethodInsnNode(
+                            org.objectweb.asm.Opcodes.INVOKESTATIC,
+                            'com/zarkonnen/catengine/lwjgl3/GLCompat', m.name, m.desc, false))
+                    m.instructions.add(new org.objectweb.asm.tree.InsnNode(
+                            org.objectweb.asm.Type.getReturnType(m.desc).getOpcode(org.objectweb.asm.Opcodes.IRETURN)))
+                    m.maxStack = 0
+                    m.maxLocals = 0
+                    routed++
+                }
+            }
+            if (routed != methods.size()) {
+                throw new GradleException('GL routing: ' + className + ' routed ' + routed + ' of ' + methods.size()
+                        + ' methods — descriptor mismatch against the LWJGL3 build in use. Re-check the routing table.')
+            }
+            def out = new File(dest, className + '.class')
+            out.parentFile.mkdirs()
+            def writer = new org.objectweb.asm.ClassWriter(org.objectweb.asm.ClassWriter.COMPUTE_MAXS)
+            node.accept(writer)
+            out.bytes = writer.toByteArray()
+            routedTotal += routed
+        }
+        logger.lifecycle('GL routing shims: ' + routedTotal + ' methods routed to GLCompat')
+    }
+}
+
+// 生成物与 LWJGL3 的同名类冲突时必须在 jar 里胜出：resources 排在 zipTree(lwjgl3) 之前。
+sourceSets.main.resources.srcDir(glRoutingOutDir)
+
 tasks.named('processResources') {
     dependsOn tasks.named('generateEngineShaderManifest')
+    dependsOn tasks.named('generateGlRoutingShims')
     inputs.property 'version', project.version
     filesMatching('fabric.mod.json') { expand(version: project.version) }
 }

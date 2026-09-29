@@ -1,5 +1,22 @@
 # 变更记录
 
+## 未发布：按调研结论重新实施 GL 路由（33 → 23）
+
+依据「二·补」的调研结论，只对**纯 GL 换主**的类启用路由：
+
+- 路由 10 个类（`RotatingShader`、`RotatingColoringShader`、`ParticleVisualLayer`、
+  `BeamLayer`、`FlagTestScreen`、`LightHaloLayer`、`Particle`、`CampaignStatsDisplay`、
+  `SaveHelperWidget`、`TechScreen`），它们从 MOD 删除（33 → 23）。
+- **`LightMapLayer` 保留源码**：它的迁移版多调了一次 `Graphics.flush()`，靠路由复现不了
+  —— 这正是上一次整批路由导致战斗界面全空的根因。
+- `MyDraw`、`ShapeUtils`、`ShipLayers` 也保留：`MyDraw` 的额外差异只是调试打印（本可路由，
+  但保守起见留下），`ShipLayers`/`ShapeUtils` 本轮 javap 没抽到可比数据，无法判定。
+- 自检断言更新：`GL11`/`GL20` 必须来自本 MOD、`GL11C` 必须来自 LWJGL3 jar；
+  `RotatingShader`/`BeamLayer`/`Particle` 必须来自游戏 jar，`LightMapLayer` 必须来自本 MOD。
+- `ci-guards` 纳管基线 33 → 23。
+
+**待用户实机验证战斗界面。** 上一次整批路由就是在这一步失败的。
+
 ## 未发布：回退 GL 路由
 
 **1.0.2 的 GL 路由（`GL11`/`GL20` shim）已回退**，回到 33 类版。
