@@ -98,7 +98,7 @@ echo "== 5b. 游戏源码纳管范围（漂移守卫）=========================
 # 本 MOD 只接管迁移"真正改过"的游戏类。这个数字是逐 hunk 分类得出的基线：
 # 165 个源文件里有语义差异的只有 33 个，其余 132 个编译产物等价，直接用游戏 jar 的版本。
 # 数字变了必须是有意为之：要么重新跑分类，要么说明为什么。
-EXPECTED_AIRSHIPS_SOURCES=16
+EXPECTED_AIRSHIPS_SOURCES=15
 actual=$(find src/main/java/com/zarkonnen/airships -name '*.java' 2>/dev/null | wc -l | tr -d ' ')
 if [ "$actual" -eq "$EXPECTED_AIRSHIPS_SOURCES" ]; then
     ok "纳管的游戏类仍是基线 $EXPECTED_AIRSHIPS_SOURCES 个"

@@ -1,5 +1,18 @@
 # 变更记录
 
+## 未发布：ShipLayers 下沉（16 → 15）
+
+`ShipLayers` 删除。依据：源码差异是纯 GL 换主（11 处），且它用到的 11 个 `GLCompat` 函数
+（`glBegin` `glBindTexture` `glColor3f` `glEnd` `glTexCoord2d` `glVertex2d`
+`glVertexAttrib1f/2f/4f` + `GL_QUADS` `GL_TEXTURE_2D` 常量）**全部在路由表内**；
+常量是编译期内联的整数，不需要处理。
+
+它是体量最大的一个（14 处属性调用），且被 `turretRotation` 注入 —— 下沉后由原版类
+承接，那个 mixin 照常生效。
+
+验证：构建通过；`engineSelfTest` PASS；`ci-guards` PASS（基线 15）。
+**战斗画面待用户复测。**
+
 ## 未发布：再下沉 5 个类（21 → 16）
 
 按字节码方法判定后删除：

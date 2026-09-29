@@ -96,13 +96,14 @@ public final class EngineClassResolver {
         r.expectFromMod("com.zarkonnen.airships.AirshipGame", "migrated game class");
         r.expectFromMod("com.zarkonnen.airships.AGame", "migrated game class");
         r.expectFromGame("com.zarkonnen.airships.MyDraw", "vanilla (diff was debug prints only)");
-        r.expectFromMod("com.zarkonnen.airships.ShipLayers", "migrated game class");
+        // ShipLayers 已下沉到 GL 路由（见 docs/MIGRATION_PROVENANCE.md）
         r.expectFromMod("org.json.JSONObject", "migrated (no sun.misc dependency)");
 
         // 纯 GL 换主的类已删除，必须回到游戏 jar。
         r.expectFromGame("com.zarkonnen.airships.RotatingShader", "vanilla (pure GL swap, routed)");
         r.expectFromGame("com.zarkonnen.airships.BeamLayer", "vanilla");
         r.expectFromGame("com.zarkonnen.airships.Particle", "vanilla");
+        r.expectFromGame("com.zarkonnen.airships.ShipLayers", "vanilla (pure GL swap, routed)");
         r.expectFromGame("com.zarkonnen.airships.StarsVisualLayer", "vanilla (pure GL swap, routed)");
         r.expectFromGame("com.zarkonnen.airships.WeatherVisualLayer", "vanilla (pure GL swap, routed)");
         r.expectFromGame("com.zarkonnen.airships.ShapeUtils", "vanilla");
