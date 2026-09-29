@@ -1,6 +1,7 @@
 .gradle/
 build/
 out/
+dist/
 
 # 本机私有路径与依赖，绝不提交。
 libs/

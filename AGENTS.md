@@ -55,6 +55,19 @@ Fabric 一般不允许 MOD 覆盖游戏类，但这条启动链允许，且已�
 路径来自被 Git 排除的 `local.properties`（可复制 `gradle.properties.example`），
 命令行 `-PframeworkDir=... -PgameLibDir=... -PinstanceDir=...` 可覆盖。
 
+## CI 与发布（改 workflow 前必读）
+
+- `.github/workflows/verify.yml` **只做静态守卫，不构建**：构建需要自有游戏 class 与已构建的
+  Acbric 框架，GitHub 托管 runner 拿不到。不要试图在托管 runner 上加构建步骤。
+- `.github/workflows/release.yml` 的 `build` 作业跑在自托管 runner 上（仓库变量
+  `ENGINE_BUILD_RUNNER`），打包与发布在托管 runner。未配置该变量时 `publish` 会明确失败并提示，
+  不要改成静默跳过或产出空 Release。
+- 版本只有一个来源：**tag**（`v1.0.1` → `1.0.1`），经 `MOD_VERSION` 注入 Gradle。
+  不要手改 `fabric.mod.json` 的版本占位符。
+- `tools/ci-guards.sh` 是唯一守卫实现，workflow 与本地共用；加约束就往里加，不要复制一份。
+- 发布产物只写 `dist/`（已被 `.gitignore` 排除），不得入库。
+- 详细路线与自托管 runner 配置见 `docs/RELEASING.zh-CN.md`。
+
 ## 关键文件
 
 - `src/main/java/com/zarkonnen/catengine/lwjgl3/` — LWJGL3 后端（`Lwjgl3Engine`、`GLCompat`…）。
@@ -65,6 +78,9 @@ Fabric 一般不允许 MOD 覆盖游戏类，但这条启动链允许，且已�
 - `docs/MIGRATION_PROVENANCE.md` — 来源、纳入范围与唯一一处结构性改造的理由。
 - `docs/MIGRATION_FILES.txt` — 与迁移前原版的逐字节差异清单。
 - `docs/VERIFICATION.zh-CN.md` — 实测证据与未覆盖范围。
+- `docs/RELEASING.zh-CN.md` — 发布流程与三条路线。
+- `tools/ci-guards.sh` — 静态守卫（CI 与本地共用）。
+- `tools/release-local.ps1` / `.sh` — 本机构建发布产物。
 
 ## 陷阱
 

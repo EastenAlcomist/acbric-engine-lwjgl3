@@ -1,0 +1,33 @@
+# verify.yml — 每个 push / PR 都跑的静态守卫。
+#
+# 本工程编译需要自有的游戏 class（asplit-*.zip）与已构建的 Acbric 框架，
+# GitHub 托管 runner 上没有、也不应该有这些文件，所以这里**不尝试构建**，
+# 只守住仓库内容策略与几条硬约束；完整构建见 release.yml 与 docs/RELEASING.zh-CN.md。
+name: verify
+
+on:
+  push:
+    branches: ['**']
+    tags-ignore: ['**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guards:
+    name: 仓库与源码守卫
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 静态守卫
+        run: bash tools/ci-guards.sh

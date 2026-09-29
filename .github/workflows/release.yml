@@ -1,0 +1,235 @@
+# release.yml — 打 tag 即发布。
+#
+# 关键前提：构建需要**自有的游戏文件 + 已构建的 Acbric 框架**。
+# 它们不在本仓库（.gitignore 明确排除），GitHub 托管 runner 上也拿不到。
+# 因此 build 作业必须跑在带这些文件的自托管 runner 上：
+#   仓库 Settings → Actions → Variables 新增 ENGINE_BUILD_RUNNER，值填自托管 runner 的标签（如 windows-airships）。
+# 未设置时 build 会被跳过，publish 会明确失败并提示三种可选做法，见 docs/RELEASING.zh-CN.md。
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '要发布的 tag，例如 v1.0.1'
+        required: true
+      publish:
+        description: '构建成功后是否创建 GitHub Release'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  guards:
+    name: 发布前守卫
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      tag: ${{ steps.v.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 解析版本（tag 去掉前导 v）
+        id: v
+        run: |
+          REF="${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
+          if [ -z "$REF" ]; then
+            echo '::error::无法确定 tag。手动触发时请在 tag 输入框填写，例如 v1.0.1。'
+            exit 1
+          fi
+          VERSION="${REF#v}"
+          echo "tag=$REF" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "解析版本：$VERSION（tag $REF）"
+
+      - name: 静态守卫
+        env:
+          MOD_VERSION: ${{ steps.v.outputs.version }}
+        run: bash tools/ci-guards.sh
+
+      - name: 校验 fabric.mod.json 的版本占位符可被替换成合法 JSON
+        run: |
+          python3 -c "import json,pathlib;raw=pathlib.Path('src/main/resources/fabric.mod.json').read_text(encoding='utf-8');json.loads(raw.replace('${version}','0.0.0'));print('fabric.mod.json 结构合法')"
+
+  build:
+    name: 构建（${{ matrix.natives }}）
+    needs: guards
+    # 未配置自托管 runner 时跳过，由 publish 给出可操作提示。
+    if: ${{ vars.ENGINE_BUILD_RUNNER != '' }}
+    runs-on: ${{ vars.ENGINE_BUILD_RUNNER }}
+    strategy:
+      fail-fast: false
+      matrix:
+        natives:
+          - natives-windows
+          - natives-linux
+          - natives-macos
+          - natives-macos-arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: oracle
+          java-version: '21'
+
+      - name: 写出依赖路径（来自仓库变量，可选）
+        shell: bash
+        env:
+          ENGINE_FRAMEWORK_DIR: ${{ vars.ENGINE_FRAMEWORK_DIR }}
+          ENGINE_GAME_LIB_DIR: ${{ vars.ENGINE_GAME_LIB_DIR }}
+        run: |
+          # 仓库变量存在时就地生成 local.properties，runner 上不必手工维护该文件；
+          # 两者都不设时留给 runner 自带的 local.properties。
+          : > local.properties
+          if [ -n "$ENGINE_FRAMEWORK_DIR" ]; then echo "frameworkDir=$ENGINE_FRAMEWORK_DIR" >> local.properties; fi
+          if [ -n "$ENGINE_GAME_LIB_DIR" ]; then echo "gameLibDir=$ENGINE_GAME_LIB_DIR" >> local.properties; fi
+          echo "--- local.properties ---"
+          cat local.properties
+          echo "-----------------------"
+
+      - name: 校验依赖齐备（游戏文件 + 框架发行）
+        shell: bash
+        run: ./gradlew verifyInputs --console=plain
+
+      - name: 构建自包含 JAR
+        shell: bash
+        env:
+          MOD_VERSION: ${{ needs.guards.outputs.version }}
+        run: |
+          ./gradlew jar --console=plain -PmodVersion="$MOD_VERSION" -Pacbric.lwjglNatives=${{ matrix.natives }} -PmodClassifier=${{ matrix.natives }}
+
+      - name: 收集产物与校验和
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp build/libs/*-${{ matrix.natives }}.jar dist/
+          cd dist && sha256sum ./*.jar > SHA256SUMS-${{ matrix.natives }}.txt && cat SHA256SUMS-${{ matrix.natives }}.txt
+
+      - name: 生成 MANIFEST（这份 JAR 到底替换了什么）
+        shell: bash
+        run: |
+          JAR=$(ls build/libs/*-${{ matrix.natives }}.jar)
+          SHADERS=$(find src/main/resources/acbric_engine_data/shaders -name '*.vert' -o -name '*.frag' | wc -l | tr -d ' ')
+          API=$(grep -o '"acbric_api": *"[^"]*"' src/main/resources/fabric.mod.json | head -1)
+          {
+            echo "jar: $(basename "$JAR")"
+            echo "version: ${{ needs.guards.outputs.version }}"
+            echo "natives: ${{ matrix.natives }}"
+            echo "acbric_api: $API"
+            echo "shaders: $SHADERS"
+            echo "jar-bytes: $(stat -c%s "$JAR")"
+          } > dist/MANIFEST-${{ matrix.natives }}.txt
+          cat dist/MANIFEST-${{ matrix.natives }}.txt
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: engine-${{ matrix.natives }}
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    name: 发布 GitHub Release
+    needs: [guards, build]
+    if: ${{ always() && needs.guards.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 下载构建产物
+        if: ${{ needs.build.result == 'success' }}
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: 没有产物时给出可操作提示
+        if: ${{ needs.build.result != 'success' }}
+        run: |
+          echo '::error::没有构建产物，无法发布。'
+          echo ''
+          echo '本工程的构建需要自有的游戏文件（asplit-A/B.zip 与游戏库）以及已构建的 Acbric 框架，'
+          echo '它们不在仓库里（.gitignore 排除），GitHub 托管 runner 上也拿不到。三种可选做法：'
+          echo ''
+          echo '  1) 自托管 runner（推荐）：在有游戏与框架的机器上注册 runner，'
+          echo '     再设置仓库变量 ENGINE_BUILD_RUNNER 为该 runner 的标签，然后重跑本工作流。'
+          echo '  2) 本地发布：执行 tools/release-local.ps1 -Version x.y.z，由本机构建并上传 Release。'
+          echo '  3) 私有依赖包：把依赖放到私有仓库的 Release，用 PAT 在构建前拉取。'
+          echo ''
+          echo '详见 docs/RELEASING.zh-CN.md。'
+          exit 1
+
+      - name: 汇总校验和
+        run: |
+          cd dist
+          ls -la
+          cat SHA256SUMS-*.txt > SHA256SUMS.txt
+          rm -f SHA256SUMS-*.txt
+          cat SHA256SUMS.txt
+
+      - name: 创建 Release
+        if: ${{ github.event_name == 'push' || inputs.publish }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.guards.outputs.tag }}
+          VERSION: ${{ needs.guards.outputs.version }}
+        run: |
+          NOTES=$(mktemp)
+          {
+            echo "# Acbric LWJGL3 Engine $VERSION"
+            echo ''
+            echo '把《Airships: Conquer the Skies》的 Slick2D / LWJGL2 引擎迁移版作为 Acbric MOD 交付。'
+            echo '装上它游戏整体跑在 LWJGL3 3.4.2 上；卸掉它回到 Slick2D + LWJGL2。'
+            echo ''
+            echo '## 选择哪个 JAR'
+            echo ''
+            echo '四个 JAR 只差 natives，按运行平台选一个即可：'
+            echo ''
+            echo '| 平台 | 文件 |'
+            echo '|---|---|'
+            for J in dist/*.jar; do
+              B=$(basename "$J")
+              case "$B" in
+                *natives-windows*) P='Windows x64' ;;
+                *natives-linux*)   P='Linux x64' ;;
+                *natives-macos-arm64*) P='macOS Apple Silicon' ;;
+                *natives-macos*)   P='macOS Intel' ;;
+                *) P='通用' ;;
+              esac
+              echo "| $P | $B |"
+            done
+            echo ''
+            echo '## 安装'
+            echo ''
+            echo '1. 需要 JDK 21 与 Acbric 框架（acbric_api >= 0.3.2）；'
+            echo '2. 把选中的 JAR 放进实例的 mods/ 目录；'
+            echo '3. 启动日志应出现 [acbric_engine_lwjgl3] ... result: PASS；出现 result: FAIL 说明 MOD 没生效。'
+            echo ''
+            echo '## 注意'
+            echo ''
+            echo '- 首次启动会把 36 个旧版固定管线着色器备份为 data/*.legacy-glsl.bak 并替换为 #version 330 core 版本；'
+            echo '  用 -Dacbric.engine.patchShaders=false 可关闭，gradlew restoreLegacyShaders 可回退。'
+            echo '- 本 MOD 不硬依赖 --enable-preview；想要无边框全屏隐藏任务栏请自行加上该参数。'
+            echo ''
+            echo '## 校验和'
+            echo ''
+            echo '```text'
+            cat dist/SHA256SUMS.txt
+            echo '```'
+            echo ''
+            echo '完整说明见仓库 README 与 docs/。'
+          } > "$NOTES"
+          gh release create "$TAG" dist/*.jar dist/SHA256SUMS.txt dist/MANIFEST-*.txt --title "Acbric LWJGL3 Engine $VERSION" --notes-file "$NOTES" --verify-tag

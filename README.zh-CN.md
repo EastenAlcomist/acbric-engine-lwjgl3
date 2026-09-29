@@ -115,10 +115,25 @@ KnotClassLoader 的 URL 顺序（先 → 后，前者胜）
 |---|---|
 | [docs/ENGINE_LWJGL3.zh-CN.md](docs/ENGINE_LWJGL3.zh-CN.md) / [EN](docs/ENGINE_LWJGL3.md) | 架构、机制、兼容性、排查表 |
 | [docs/VERIFICATION.zh-CN.md](docs/VERIFICATION.zh-CN.md) / [EN](docs/VERIFICATION.md) | 实测证据与未覆盖范围 |
+| [docs/RELEASING.zh-CN.md](docs/RELEASING.zh-CN.md) / [EN](docs/RELEASING.md) | 发布流程：为什么 CI 托管 runner 构建不了、三条路线、版本号规则 |
 | [docs/MIGRATION_PROVENANCE.md](docs/MIGRATION_PROVENANCE.md) | 来源、纳入范围、唯一一处结构性改造 |
 | [docs/MIGRATION_FILES.txt](docs/MIGRATION_FILES.txt) | 与迁移前原版的逐字节差异清单 |
 | [CONTRIBUTING.zh-CN.md](CONTRIBUTING.zh-CN.md) | 环境与提交前检查 |
 | [AGENTS.md](AGENTS.md) | 给自动化代理的项目约束 |
+
+## 持续集成与发布
+
+```powershell
+bash tools/ci-guards.sh                                  # 静态守卫（本地也能跑）
+.\tools\release-local.ps1 -Version 1.0.1                # 本机构建发布产物到 dist/
+```
+
+- `.github/workflows/verify.yml`：每个 push / PR 跑静态守卫。**不尝试构建**——构建需要自有的游戏
+  class 与已构建的框架，托管 runner 拿不到。
+- `.github/workflows/release.yml`：推 `v*` tag 时发布；构建作业跑在自托管 runner 上
+  （仓库变量 `ENGINE_BUILD_RUNNER`），打包与发布跑在托管 runner 上。
+
+三条路线、自托管 runner 配置、版本号规则见 [docs/RELEASING.zh-CN.md](docs/RELEASING.zh-CN.md)。
 
 ## 许可
 

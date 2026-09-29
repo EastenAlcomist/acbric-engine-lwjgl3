@@ -9,7 +9,8 @@
 plugins { id 'java' }
 
 group = 'net.fabricacs.engine'
-version = findProperty('modVersion') ?: '1.0.0'
+// 版本优先级：-PmodVersion=... > 环境变量 MOD_VERSION（CI 由 tag 注入）> gradle.properties > 默认值。
+version = findProperty('modVersion') ?: System.getenv('MOD_VERSION') ?: '1.0.0'
 
 repositories {
     mavenCentral()
@@ -139,6 +140,10 @@ tasks.named('processResources') {
 // 自包含 MOD JAR：迁移后的引擎类 + 游戏类 + GLSL + LWJGL3 运行时（含 natives）。
 jar {
     archiveBaseName = findProperty('modArchiveName') ?: 'acbric-engine-lwjgl3'
+    // 可选平台后缀，供发布矩阵产出每平台一个 JAR：-PmodClassifier=natives-linux
+    if (findProperty('modClassifier')) {
+        archiveClassifier = findProperty('modClassifier')
+    }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     from('LICENSE') { into 'META-INF' }
     from({ configurations.lwjgl3.collect { zipTree(it) } }) {
