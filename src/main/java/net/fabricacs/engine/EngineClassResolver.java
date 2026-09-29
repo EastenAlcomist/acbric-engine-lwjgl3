@@ -91,12 +91,25 @@ public final class EngineClassResolver {
         r.expectFromMod("org.lwjgl.opengl.DisplayMode", "LWJGL2 DisplayMode shim");
 
         // ---- 4. 取代 asplit-A/B.zip 的迁移版游戏类 ----
+        // ---- 4a. 迁移改动过的游戏类必须由本 MOD 提供 ----
         r.expectFromMod("com.zarkonnen.airships.Main", "migrated entrypoint (uses Lwjgl3Engine)");
         r.expectFromMod("com.zarkonnen.airships.AirshipGame", "migrated game class");
         r.expectFromMod("com.zarkonnen.airships.AGame", "migrated game class");
         r.expectFromMod("com.zarkonnen.airships.MyDraw", "migrated (GL calls via GLCompat)");
         r.expectFromMod("com.zarkonnen.airships.ShipLayers", "migrated game class");
         r.expectFromMod("org.json.JSONObject", "migrated (no sun.misc dependency)");
+
+        // ---- 4b. 迁移没有实际改动的游戏类必须仍由游戏 jar 提供 ----
+        // 这是回归保护：本 MOD 只接管真正变过的类，不再整包发布游戏源码。
+        // 一旦有人把这些类又拷回 MOD，或者把模块 jar 放到了游戏 jar 前面，
+        // 「基线漂移」就会在这里显形。
+        r.expectFromGame("com.zarkonnen.airships.Airship", "vanilla (untouched by the migration)");
+        r.expectFromGame("com.zarkonnen.airships.City", "vanilla");
+        r.expectFromGame("com.zarkonnen.airships.CampaignWorld", "vanilla");
+        r.expectFromGame("com.zarkonnen.airships.Combat", "vanilla");
+        r.expectFromGame("com.zarkonnen.airships.ModuleType", "vanilla");
+        r.expectFromGame("com.zarkonnen.airships.SpritesheetBundle", "vanilla");
+        r.expectFromGame("com.zarkonnen.airships.Server", "vanilla");
 
         // ---- 5. LWJGL3 运行时必须来自 LWJGL3，而不是 lwjgl.jar(LWJGL2) ----
         r.expectLwjgl3("org.lwjgl.opengl.GL11");
@@ -127,6 +140,28 @@ public final class EngineClassResolver {
         probes.add(new Probe(className, expectation, true, loc,
                 sameJar ? "OK: provided by this mod" : "WRONG: resolved to " + loc, !sameJar));
         if (!sameJar) {
+            failures++;
+        }
+    }
+
+    /** 断言该类来自游戏 jar（asplit-A/B.zip），即本 MOD 没有接管它。 */
+    private void expectFromGame(String className, String expectation) {
+        Class<?> c = load(className);
+        if (c == null) {
+            probes.add(new Probe(className, expectation, false, "<missing>", "class could not be loaded", true));
+            failures++;
+            return;
+        }
+        String loc = locationOf(c);
+        String file = fileName(loc).toLowerCase();
+        boolean fromGame = file.startsWith("asplit-");
+        boolean fromMod = sameJar(loc, modLocation);
+        probes.add(new Probe(className, expectation, true, loc,
+                fromGame ? "OK: provided by the game jar"
+                        : (fromMod ? "WRONG: provided by this mod (should stay vanilla)"
+                                   : "WRONG: resolved to " + loc),
+                !fromGame));
+        if (!fromGame) {
             failures++;
         }
     }

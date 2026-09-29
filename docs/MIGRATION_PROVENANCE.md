@@ -13,14 +13,40 @@
 | `com/zarkonnen/catengine/lwjgl3/**` | 11 | 迁移新增的 LWJGL3 后端（引擎主循环、GLCompat、Tex、GlProgram、Framebuffer、OpenAL 音频…） |
 | `org/newdawn/slick/**` | 21 | 手写 Slick2D 兼容层，**取代 `libs/slick.jar`** |
 | `org/lwjgl/opengl/{Display,DisplayMode}.java` | 2 | LWJGL2 `Display`/`DisplayMode` shim（委托 GLFW） |
-| `com/zarkonnen/airships/**` | 165 | 迁移改动过的游戏类（GL 调用改走 GLCompat、JDK21 兼容清理等） |
+| `com/zarkonnen/airships/**` | **33** | 迁移**真正改过行为**的游戏类（详见下节；其余 132 个编译产物等价，改用游戏 jar 的版本） |
 | `org/json/{JSONObject,JSONArray}.java` | 2 | 迁移改动过（去掉 `sun.misc.FloatingDecimal2`） |
 | `net/fabricacs/engine/**` | 4 | **新增**：Acbric 侧入口、自检、类解析诊断、着色器安装器 |
 | `src/main/resources/acbric_engine_data/shaders/*` | 36 | **新增**：`#version 330 core` 版 GLSL（来自 `ACSExpend/src/data/`），随 jar 携带、启动时装进实例的 `data/` |
 | 合计 | **240** | |
 
-> `com/zarkonnen/airships` 共 631 个文件，其余 466 个与原版逐字节相同，**不放进 MOD**，
-> 仍由 `libs/asplit-A.zip` / `asplit-B.zip` 提供。MOD 只“接管”真正变过的部分。
+> `com/zarkonnen/airships` 共 631 个源文件：466 个与原版逐字节相同，
+> 另外 **132 个虽然源码有差异、但编译产物等价**（见下节）。因此真正纳入 MOD 的只有 **33 个**，
+> 其余全部用 `libs/asplit-A.zip` / `asplit-B.zip` 里的游戏类。
+
+### 逐 hunk 分类：165 个“改动过”的文件里只有 33 个真的改了行为
+
+对 165 个差异文件做逐 hunk 归一化比对。归一化规则：去掉 `strictfp`、
+`new X(...)`→`X.valueOf(...)`、冗余类限定符（`Loadable.foo`→`foo`、
+`AnimationType.STANDING`→`STANDING`、`DiplomacyWindow.ICON_SIZE`→`ICON_SIZE`）、
+纯空白与纯无关 import 行。
+
+| 类别 | 文件数 | 处理 |
+|---|---:|---|
+| 无语义差异（IDE 重构 / 格式 / 无关 import） | **132** | **直接丢弃**，改用 `asplit-*.zip` 的游戏类 |
+| 真实改动 | **33** | 纳入 MOD（本版），是后续改 mixin 的候选集 |
+
+33 个里再分：
+
+| 子类 | 文件数 | 说明 |
+|---|---:|---|
+| 仅 GL 路由（`GL11.x`→`GLCompat.x`） | 17 | 涉及的全部 GL 函数只有 15 个：`glBindTexture`、`glBegin/glEnd`、`glVertex2d/2f`、`glTexCoord2d`、`glColor3f/4f`、`glEnable/glDisable`、`glVertexAttrib1f/2f/3f/4f` |
+| 引擎/输入接线（`SlickEngine`→`Lwjgl3Engine` 等） | 6 | `AirshipGame`、`Main`、`Mod`、`Expansion`、`CombatSoundEffects`、`FBOGraphicsFactory` |
+| 迁移期缺陷修复 | 10 | `AGame`（`-Dacs.staticdir`）、`LaunchSettings`（`targetFPS`）、`Keys`（`resetQueriedKeys`）等 |
+
+> **只带 import 改动的文件不能一律丢弃。** `CombatSoundEffects` 全文只差一行 import
+> （`SlickEngine` → `Lwjgl3Engine`），但那个类型参与了 cast，
+> `((SlickEngine.MyInput) in).typedText()` 会编译成指向不同 owner 的 `checkcast`。
+> 这类文件必须留下——`StarsVisualLayer`、`TextField`、`WeatherVisualLayer` 同理。
 
 ### 迁移改动分类（差异分析结论）
 
@@ -84,6 +110,27 @@ error: the locations of a builtin vertex attribute (named gl_MultiTexCoord0)
 
 `shaders.list` 由 Gradle 任务 `generateEngineShaderManifest` 在构建时按目录内容生成，
 不会与实际文件漂移。
+
+## 三·补、基线版本落差（重要，未解决）
+
+**迁移工程的源码是游戏 1.2.14，而 Acbric 的 `libs/asplit-A/B.zip` 是游戏 1.2.15.2。**
+依据：`AGame.VERSION = "1.2.14"`；框架启动日志报 `Game 1.2.15.2`。
+
+本 MOD 本质上是“1.2.14 派生的类覆盖在 1.2.15.2 的游戏上”。删掉 132 个类之后，被删的类
+改用 1.2.15.2 版本，于是暴露出 1.2.15.2 才有的 API。已按字节码忠实回填两处：
+
+| 缺失成员 | 调用方（1.2.15.2） | 回填方式 |
+|---|---|---|
+| `AirshipGame.getClient()` | `CampaignWorld` | 返回已有的 `public Client client` 字段 |
+| `CityUpgradeType.defenceBudget` | `City`、`HeroManagementAI` | `BonusableValue.intFromJSON(o,"defenceBudget",0)`；描述行用 lang key `local_defence_budget` |
+
+其余差异不构成运行时问题：`getMyInput` / `addLoadBases` / `resetLoadBases` 的
+`SlickEngine$MyInput` 参数、`BonusableValue.ImgFromJSON` 字段，调用方全部在本 MOD
+重新编译过的类里（`CombatSoundEffects`、`Mod`、`AirshipGame`、`CityUpgradeType`）。
+
+> **这是把改动转成 mixin 之前必须先解决的问题。** mixin 要求目标字节码逐字匹配，
+> 而 1.2.14 的源码差异不是 1.2.15.2 字节码的正确参照。要么把迁移重新基线到 1.2.15.2，
+> 要么让 Acbric 改用 1.2.14 的游戏 jar。
 
 ## 四、没有纳入的东西
 

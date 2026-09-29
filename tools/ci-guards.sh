@@ -94,6 +94,27 @@ else
 fi
 
 echo
+echo "== 5b. 游戏源码纳管范围（漂移守卫）=============================="
+# 本 MOD 只接管迁移"真正改过"的游戏类。这个数字是逐 hunk 分类得出的基线：
+# 165 个源文件里有语义差异的只有 33 个，其余 132 个编译产物等价，直接用游戏 jar 的版本。
+# 数字变了必须是有意为之：要么重新跑分类，要么说明为什么。
+EXPECTED_AIRSHIPS_SOURCES=33
+actual=$(find src/main/java/com/zarkonnen/airships -name '*.java' 2>/dev/null | wc -l | tr -d ' ')
+if [ "$actual" -eq "$EXPECTED_AIRSHIPS_SOURCES" ]; then
+    ok "纳管的游戏类仍是基线 $EXPECTED_AIRSHIPS_SOURCES 个"
+else
+    bad "纳管的游戏类从 $EXPECTED_AIRSHIPS_SOURCES 变成了 $actual —— 说明纳管范围漂移了。"
+    echo "         要么是有人把无语义差异的类又拷了回来（应删掉，改用游戏 jar 的版本），"
+    echo "         要么是迁移基线更新了（那要重新跑 docs/MIGRATION_PROVENANCE.md 里的分类流程，"
+    echo "         并同步这个基线数字与 docs/MIGRATION_FILES.txt）。"
+fi
+if [ -f docs/MIGRATION_FILES.txt ]; then
+    ok "docs/MIGRATION_FILES.txt 存在（改动清单）"
+else
+    bad "缺少 docs/MIGRATION_FILES.txt"
+fi
+
+echo
 echo "== 6. LWJGL2 残留 =============================================="
 lwjgl2=$(grep -rn 'import org[.]lwjgl[.]\(LWJGLException\|Sys\|input[.]\)' src/main/java || true)
 if [ -n "$lwjgl2" ]; then

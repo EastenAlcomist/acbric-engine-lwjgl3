@@ -1,5 +1,28 @@
 # 变更记录
 
+## 1.0.1
+
+**收窄纳管的游戏源码：165 → 33 个类。**
+
+- 对 165 个差异文件做逐 hunk 归一化比对，发现 **132 个只有无语义差异的改动**
+  （IDE 去掉冗余类限定符、`strictfp` 移除、`new Integer`→`valueOf`、格式与无关 import）。
+  这些类**从 MOD 中删除**，改由游戏 jar（`asplit-A/B.zip`）提供。
+  源码发行里出现的游戏派生文件因此减少约 80%。
+- 保留 33 个真正改过行为的类。注意只带 import 改动的文件不能一律丢弃：
+  `CombatSoundEffects` 全文只差一行 import，但那个类型参与 cast，字节码不同。
+- 自检新增反向断言：`Airship`、`City`、`CampaignWorld`、`Combat`、`ModuleType`、
+  `SpritesheetBundle`、`Server` 必须来自游戏 jar，防止纳管范围回涨。
+- `tools/ci-guards.sh` 增加纳管数量漂移守卫（基线 33）。
+- 修复因删类暴露的 1.2.15.2 API 缺口（见 `docs/MIGRATION_PROVENANCE.md` 三·补）：
+  回填 `AirshipGame.getClient()` 与 `CityUpgradeType.defenceBudget`，
+  否则 1.2.15.2 的 `CampaignWorld` / `City` / `HeroManagementAI` 会 `NoSuchMethodError` /
+  `NoSuchFieldError`。
+- 记录**尚未解决**的基线落差：迁移源码是 1.2.14，而 `asplit-*.zip` 是 1.2.15.2。
+  这是后续把改动转成 mixin 的前置问题。
+
+验证：构建通过；`engineSelfTest` 双侧断言 PASS（迁移类来自 MOD、未改动类来自游戏 jar）；
+实机启动 95 秒，`log.txt` **0 异常**，主菜单与 OpenAL 正常。
+
 ## 1.0.0
 
 首个版本：把 `ACSExpend/src` 的 Slick2D / LWJGL2 → LWJGL3 引擎迁移版作为 Acbric MOD 交付。

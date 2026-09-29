@@ -16,7 +16,8 @@ public final class Lwjgl3EngineMod implements AcbricInitializer {
 
     @Override
     public void onInitializeAcbric(AcbricModContext ctx) {
-        ctx.logger().info("LWJGL3 engine mod active: game classes are provided by this mod's jar "
+        ctx.logger().info("LWJGL3 engine mod active: only the classes the migration actually changed "
+                + "are provided by this mod; everything else comes from the game jars "
                 + "(LWJGL3 " + lwjgl3Version() + ").");
 
         AirshipsLifecycleEvents.GAME_STARTING.register(args -> {

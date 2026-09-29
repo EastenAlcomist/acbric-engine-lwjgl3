@@ -7,7 +7,8 @@
 ## 这个 MOD 不是普通功能 MOD
 
 它不做玩法扩展，而是**替换引擎**：jar 内提供 LWJGL3 后端、Slick2D 兼容层、
-LWJGL2 `Display`/`DisplayMode` shim，以及迁移改动过的 165 个游戏类。
+LWJGL2 `Display`/`DisplayMode` shim，以及迁移**真正改过行为**的 33 个游戏类
+（原先 165 个里有 132 个编译产物等价，已改为使用游戏 jar 的版本）。
 装上它，游戏整体跑在 LWJGL3 上；卸掉它，游戏回到 Slick2D + LWJGL2。
 
 ## 机制（改代码前必须理解）
@@ -81,6 +82,19 @@ Fabric 一般不允许 MOD 覆盖游戏类，但这条启动链允许，且已�
 - `docs/RELEASING.zh-CN.md` — 发布流程与三条路线。
 - `tools/ci-guards.sh` — 静态守卫（CI 与本地共用）。
 - `tools/release-local.ps1` / `.sh` — 本机构建发布产物。
+
+## 纳管范围（改动前先看）
+
+本 MOD **只接管迁移真正改过行为的 33 个游戏类**，其余由游戏 jar 提供。
+判定方法、分类结果与基线落差见 `docs/MIGRATION_PROVENANCE.md`。要点：
+
+- 想加类进 MOD，先按该文档的归一化流程跑一遍差异分类；无语义差异的类**不要**加回来。
+- **只带 import 改动的文件不能一律丢弃**：类型参与 cast 时字节码不同（`CombatSoundEffects`）。
+- 数量基线 33 由 `tools/ci-guards.sh` 守着；改动要同步基线数字与文档。
+- **迁移源码是游戏 1.2.14，`asplit-*.zip` 是 1.2.15.2。** 使用 1.2.15.2 才有的 API 时
+  必须按字节码回填（已回填 `AirshipGame.getClient()`、`CityUpgradeType.defenceBudget`），
+  否则 1.2.15.2 的类会 `NoSuchMethodError` / `NoSuchFieldError`。
+  把改动转成 mixin 之前必须先解决这个落差。
 
 ## 陷阱
 

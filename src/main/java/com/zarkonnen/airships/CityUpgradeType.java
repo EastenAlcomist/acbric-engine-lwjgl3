@@ -17,6 +17,16 @@ public strictfp class CityUpgradeType extends Loadable implements HasName {
 	public final BonusableValue<Integer> reputation;
 	public final BonusableValue<Integer> localSupply;
 	public final BonusableValue<Integer> globalSupply;
+	/**
+	 * 防御预算加成。
+	 *
+	 * <p>本字段是游戏 1.2.15.2 新增、迁移基线 1.2.14 没有的。回填它的原因是二进制的：
+	 * asplit-*.zip 里的 1.2.15.2 {@code City} / {@code HeroManagementAI} 会
+	 * {@code getfield CityUpgradeType.defenceBudget}，缺失即 {@code NoSuchFieldError}。
+	 * 取值与默认值按 1.2.15.2 字节码还原（{@code BonusableValue.intFromJSON(o,"defenceBudget",0)}），
+	 * 描述行使用同一版本里的 lang key {@code local_defence_budget}。</p>
+	 */
+	public final BonusableValue<Integer> defenceBudget;
 	public final String requiredUpgradesName;
 	public final int numRequiredUpgrades;
 	public final boolean enableShipBuilding;
@@ -54,6 +64,7 @@ public strictfp class CityUpgradeType extends Loadable implements HasName {
 		reputation = BonusableValue.intFromJSON(o, "reputation", 0);
 		localSupply = BonusableValue.intFromJSON(o, "localSupply", 0);
 		globalSupply = BonusableValue.intFromJSON(o, "globalSupply", 0);
+		defenceBudget = BonusableValue.intFromJSON(o, "defenceBudget", 0);
 		enableShipBuilding = o.optBoolean("enableShipBuilding", false);
 		extraCost = BonusableValue.intFromJSON(o, "extraCost", 0);
 		constructionTime = BonusableValue.intFromJSON(o, "constructionTime", 400 * 28 * 6); // Six months
@@ -168,6 +179,9 @@ public strictfp class CityUpgradeType extends Loadable implements HasName {
 		}
 		if (unrest.get(bs) != 0) {
 			sb.append("\n").append(unrest.get(bs) > 0 ? "+" : "").append(unrest.get(bs)).append(" ").append(_t("upgrade_unrest"));
+		}
+		if (defenceBudget.get(bs) != 0) {
+			sb.append("\n").append(defenceBudget.get(bs) > 0 ? "+" : "").append(defenceBudget.get(bs)).append(" ").append(_t("local_defence_budget"));
 		}
 		if (wm.toggles.contains(ConquestToggle.REPUTATION)) {
 			if (reputation.get(bs) != 0) {

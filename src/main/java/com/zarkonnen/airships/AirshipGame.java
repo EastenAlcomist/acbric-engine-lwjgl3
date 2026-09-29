@@ -191,6 +191,16 @@ public class AirshipGame implements Game, ExceptionHandler, Lwjgl3Engine.ReportH
 	public Client client;
 	public Client lanClient;
 	public Server lanServer;
+
+	/**
+	 * 与原版 1.2.15.2 对齐的访问器。
+	 *
+	 * <p>1.2.15.2 的 {@code CampaignWorld} 会 {@code invokevirtual AirshipGame.getClient()}，
+	 * 而迁移基线 1.2.14 只有 {@code public Client client} 字段、没有该方法，
+	 * 于是 asplit-*.zip 里的 1.2.15.2 {@code CampaignWorld} 调用时会 {@code NoSuchMethodError}。
+	 * 语义与 1.2.15.2 字节码一致：直接返回 {@link #client}。</p>
+	 */
+	public Client getClient() { return client; }
 	public final ArrayList<ChatMsg> chat = new ArrayList<ChatMsg>();
 	public final HashMap<Integer, PlayerInfo> players = new HashMap<Integer, PlayerInfo>();
 	public final ArrayList<ChannelInfo> channels = new ArrayList<ChannelInfo>();
