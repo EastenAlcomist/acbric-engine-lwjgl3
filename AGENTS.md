@@ -91,12 +91,14 @@ Fabric 一般不允许 MOD 覆盖游戏类，但这条启动链允许，且已�
 - 想加类进 MOD，先按该文档的归一化流程跑一遍差异分类；无语义差异的类**不要**加回来。
 - **只带 import 改动的文件不能一律丢弃**：类型参与 cast 时字节码不同（`CombatSoundEffects`）。
 - 数量基线 33 由 `tools/ci-guards.sh` 守着；改动要同步基线数字与文档。
-- **迁移源码是游戏 1.2.14，`asplit-*.zip` 是 1.2.15.2。** 使用 1.2.15.2 才有的 API 时
+- **迁移源码是游戏 1.2.14，`asplit-*.zip` 是 1.2.15.x。** 机器上没有 1.2.14 的游戏文件
+  （Steam 安装是 1.2.15.3）。这个落差**被接受**，不对齐。使用新版本才有的 API 时
   必须按字节码回填（已回填 `AirshipGame.getClient()`、`CityUpgradeType.defenceBudget`），
-  否则 1.2.15.2 的类会 `NoSuchMethodError` / `NoSuchFieldError`。
-  把改动转成 mixin 之前必须先解决这个落差。
-- **已定的两项方向**（细节与步骤见 `docs/REBASELINE_PLAN.zh-CN.md`）：
-  ① 把迁移基线重置到游戏 1.2.15.2（用 asplit 反编译出的源码重做差异分类）；
+  否则新版本的类会 `NoSuchMethodError` / `NoSuchFieldError`。
+- **已定的方向**（细节与步骤见 `docs/REBASELINE_PLAN.zh-CN.md`）：
+  ① **基线保持 1.2.14，不反编译、不迁移基线**（2026-09-29 用户决定）。
+  版本落差被接受：mixin 注入点**对着 `asplit-*.zip` 的字节码写**（`javap -p -c`），
+  1.2.14 的源码差异只用来说明"想改什么"，不用来定位字节码；
   ② GL 那 17 个类不写游戏 mixin，改为在 GL 层解决——用 ASM 生成一个
   `org.lwjgl.opengl.GL11` shim，把 15 个函数路由到 `GLCompat`。
   **注意递归陷阱**：`GLCompat` 目前用全限定名调真实 GL
