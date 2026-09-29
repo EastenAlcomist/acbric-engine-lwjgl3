@@ -105,6 +105,7 @@ public final class EngineClassResolver {
         r.expectFromGame("com.zarkonnen.airships.Particle", "vanilla");
         r.expectFromGame("com.zarkonnen.airships.ShipLayers", "vanilla (pure GL swap, routed)");
         r.expectFromGame("com.zarkonnen.airships.AGame", "vanilla + AGameMixin (-Dacs.staticdir)");
+        r.expectFromGame("com.zarkonnen.airships.Job", "vanilla (diff was whitespace only)");
         r.expectFromGame("com.zarkonnen.airships.StarsVisualLayer", "vanilla (pure GL swap, routed)");
         r.expectFromGame("com.zarkonnen.airships.WeatherVisualLayer", "vanilla (pure GL swap, routed)");
         r.expectFromGame("com.zarkonnen.airships.ShapeUtils", "vanilla");

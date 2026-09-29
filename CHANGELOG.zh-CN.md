@@ -1,5 +1,22 @@
 # 变更记录
 
+## 未发布：Job 下沉（14 → 13）
+
+`Job` 删除。逐字节对比发现它与原版**只差一个空行**（`public strictfp interface Job` 前多了一行），
+属于此前 132 类漏网的一个 —— 当时的归一化分类器对"仅增删空行"的 hunk 判成了真实改动。
+零行为风险。
+
+`ci-guards` 基线 14 → 13。
+
+### 下一个：StrategicScreen（注入点已定位）
+
+`noticeInfoString()` 里有一处真实 bug 修复：vanilla 用 `combatInfo.defendingLoc` 拼
+`You_are_fighting_x_near_y` 这条文案，迁移版改成 `nearLoc`。
+注意：**同一方法里 `nearLoc` 的 null 检查用的就是 `nearLoc`（本来就对）**，
+所以 `@Redirect` 必须用 `ordinal` 只命中拼字符串那一处，不能把 null 检查也改掉。
+
+验证：构建通过；`engineSelfTest` PASS；`ci-guards` PASS（基线 13）。
+
 ## 未发布：AGame 下沉到 mixin（15 → 14）
 
 `AGameMixin`：给原版 `AGame.getStaticGameDirectory()` 补 `-Dacs.staticdir` 覆盖分支
