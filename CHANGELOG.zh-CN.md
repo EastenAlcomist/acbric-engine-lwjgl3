@@ -1,5 +1,24 @@
 # 变更记录
 
+## 未发布：再下沉 5 个类（21 → 16）
+
+按字节码方法判定后删除：
+
+| 类 | 依据 |
+|---|---|
+| `StarsVisualLayer` | 纯 GL 换主；用到的 `glBegin/glEnd/glVertex2d/glColor4f` 与 `GL_QUADS` 全在路由表内 |
+| `WeatherVisualLayer` | 同上（另有 `glColor3f/glVertex2f`，亦在表内） |
+| `ShapeUtils` | 只有 1 处 `glVertex2f`，在表内 |
+| `TextField` | 无 GL 调用，差异仅调试打印 |
+| `ResChooserWidget` | 无 GL 调用，差异仅调试打印 |
+
+**`ShipLayers` 暂留**：源码差异是纯 GL（11 处），11 个 GLCompat 函数也都在路由表内，
+但 `javap` 两轮都没抽出可比数据（怀疑与其它类一样解析失败），证据不足以单独放行。
+它体量大（14 处属性调用）且被 turretRotation 注入，值得单独一轮验证。
+
+验证：构建通过；`engineSelfTest` PASS；`ci-guards` PASS（基线 16）。
+**战斗画面待用户复测。**
+
 ## 未发布：首个游戏类 mixin 上线（23 → 21）
 
 - **新增 mixin 基础设施**：`acbric-engine-lwjgl3.mixins.json` + `fabric.mod.json` 的

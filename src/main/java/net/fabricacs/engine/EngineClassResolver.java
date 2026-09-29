@@ -103,6 +103,11 @@ public final class EngineClassResolver {
         r.expectFromGame("com.zarkonnen.airships.RotatingShader", "vanilla (pure GL swap, routed)");
         r.expectFromGame("com.zarkonnen.airships.BeamLayer", "vanilla");
         r.expectFromGame("com.zarkonnen.airships.Particle", "vanilla");
+        r.expectFromGame("com.zarkonnen.airships.StarsVisualLayer", "vanilla (pure GL swap, routed)");
+        r.expectFromGame("com.zarkonnen.airships.WeatherVisualLayer", "vanilla (pure GL swap, routed)");
+        r.expectFromGame("com.zarkonnen.airships.ShapeUtils", "vanilla");
+        r.expectFromGame("com.zarkonnen.airships.TextField", "vanilla (debug prints only)");
+        r.expectFromGame("com.zarkonnen.airships.ResChooserWidget", "vanilla (debug prints only)");
         // LightMapLayer 仍由本 MOD 提供：它的迁移版多调一次 Graphics.flush()，路由复现不了。
         r.expectFromGame("com.zarkonnen.airships.LightMapLayer", "vanilla + LightMapLayerMixin (flush)");
 
