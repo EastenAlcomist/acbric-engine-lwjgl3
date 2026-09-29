@@ -10,18 +10,23 @@
 
 即 GL 路由是这次回归的原因。回退后自检 PASS，编辑器与战斗界面均正常。
 
-GL 路由的动机仍然成立（避免给 14 个类写几百个 mixin），但它的语义等价性**没有成立**：
+**根因已于 2026-09-29 用字节码对比查清**（此前写的第一版原因是错的，已作废）：
 
-- `GLCompat.writeAttrib` 会**丢弃 `index < 1000` 的写入**，而 `GL20.glVertexAttrib*` 从原版
-  游戏类传进来的是**真实 GL 属性位置**；假位置（`1000 + slot*4 + off`）只有迁移版代码
-  通过 `GlProgram.getAttributeID` 才会产生。
-- 迁移版 `Appearance` 里有一处**新增**调用 `sublsp.enableVertexAttribute("strength")`，
-  说明兼容层需要显式启用属性槽位——这条状态维护在 vanilla 类里没人做。
+逐类对比 vanilla（asplit）与迁移版的**方法引用集合**后发现，那 14 个类的差异绝大多数
+只是 `GL11.x`/`GL20.x` → `GLCompat.x` 的**宿主类替换**，调用序列完全一致 ——
+包括 `ShaderProgram.getAttributeID` 与 `enableVertexAttribute`（**两边都调，参数也一样**）。
+所以"属性位置语义不同"并不是根因。
 
-**重新尝试路由前必须先解决这两点**，并且要有能覆盖船体渲染的验证手段
-（吸引模式只到编辑器，船还没加载出来；需要一个能进战斗的自动抓图流程）。
+真正的根因是 **`LightMapLayer` 有一处光靠路由复现不了的差异**：迁移版多调了
+`org.newdawn.slick.Graphics.flush()`，vanilla 版没有。光照层跑在战斗渲染路径上，
+少了这次 flush，批渲染的顺序被打乱 → 战斗画面出不来；编辑器不跑光照层，所以看不出来。
 
-分析结论保留在 `docs/MIGRATION_PROVENANCE.md` 与 `docs/REBASELINE_PLAN.zh-CN.md`。
+**这也是"编辑器正常 ≠ 整体正常"的机制解释。**
+
+调研结论（`docs/REBASELINE_PLAN.zh-CN.md` 有完整表）：14 个类里
+**10 个是纯 GL 换主**（额外差异仅为迁移版加的调试打印）→ 可以安全路由；
+**1 个（`LightMapLayer`）含真实非 GL 差异** → 需要为它保留源码或写一个单点 mixin；
+**3 个（`ShipLayers`/`MyDraw`/`ShapeUtils`）本轮没抽到可比数据**，需复核。
 
 ## 1.0.1
 

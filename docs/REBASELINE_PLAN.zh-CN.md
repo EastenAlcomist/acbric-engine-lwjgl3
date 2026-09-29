@@ -59,7 +59,52 @@ Acbric 的 `libs/asplit-*.zip` 是 1.2.15.2 的快照）。因此 MOD 始终是
 > 反编译工具与许可证：需确认所选反编译器（CFR / Vineflower 等）的输出可接受。
 > 这一步只用于**差异分析**，不进仓库、不进发行包。
 
-## 二、决定 2：GL 那 17 个类改在 GL 层解决，不写游戏类 mixin
+## 二·补、GL 路由调研结论（2026-09-29，最新）
+
+第一次实现的 GL 路由**破坏了战斗渲染**（编辑器正常），已回退（`a589181`）。
+用字节码逐类对比后查清了原因。
+
+**方法**：对每个类，分别从 `asplit-A/B.zip`（vanilla）与 MOD JAR（迁移版）反汇编，
+取 `javap -p -c` 里的 `Method`/`Field` 引用集合做差。
+
+| 类 | GL 换主 | 非 GL 差异 | 结论 |
+|---|---:|---|---|
+| RotatingShader | 8 | 仅调试打印 | 可路由 |
+| RotatingColoringShader | 8 | 仅调试打印 | 可路由 |
+| ParticleVisualLayer | 8 | 无 | 可路由 |
+| BeamLayer | 9 | 无 | 可路由 |
+| FlagTestScreen | 5 | 无 | 可路由 |
+| LightHaloLayer | 9 | 无 | 可路由 |
+| Particle | 4 | 无 | 可路由 |
+| CampaignStatsDisplay | 4 | 仅调试打印 | 可路由 |
+| SaveHelperWidget | 4 | 仅调试打印 | 可路由 |
+| TechScreen | 5 | 仅调试打印 | 可路由 |
+| **LightMapLayer** | 8 | **多调 `Graphics.flush()`** | **不可只靠路由** |
+| ShipLayers / MyDraw / ShapeUtils | — | 本轮未抽到可比数据 | 待复核 |
+
+### 真正的根因
+
+`LightMapLayer` 的迁移版**多调了一次 `org.newdawn.slick.Graphics.flush()`**。
+光照层位于战斗渲染路径上；少了这次 flush，兼容层批渲染的顺序被打乱 → 战斗画面出不来。
+编辑器不跑光照层，所以完全看不出来 —— **这就是"编辑器正常 ≠ 整体正常"的机制**。
+
+### 作废的旧结论
+
+先前记的两条根因**不成立**：vanilla 类与迁移版**同样**调用 `getAttributeID` 与
+`enableVertexAttribute`，参数一致、拿到的假 ID 也一致；宿主类替换对它们是等价的。
+（`GLCompat.writeAttrib` 丢弃 `index < 1000` 是事实，但不是这次回归的原因。）
+
+### 可行的做法（尚未实施）
+
+1. 对**纯 GL 换主**的 10 个类启用路由并从 MOD 删除（33 → 23）；
+2. `LightMapLayer` 保留源码，或为它写一个单点 mixin（在对应位置插一次 `Graphics.flush()`）；
+3. 复核 `ShipLayers`/`MyDraw`/`ShapeUtils`（`ShipLayers` 有 14 处属性调用，值得单独看）。
+
+**验证要求**：任何一次路由改动都必须**实机进战斗**确认，不能只看编辑器。
+
+---
+
+## 二、决定 2（第一次实现，已回退）：GL 那 17 个类改在 GL 层解决，不写游戏类 mixin
 
 ### 现状
 
