@@ -95,11 +95,8 @@ public final class EngineClassResolver {
         r.expectFromMod("com.zarkonnen.airships.Main", "migrated entrypoint (uses Lwjgl3Engine)");
         r.expectFromMod("com.zarkonnen.airships.AirshipGame", "migrated game class");
         r.expectFromMod("com.zarkonnen.airships.AGame", "migrated game class");
-        // 这两个类原先由 MOD 接管，GL 路由 shim 上线后已删掉，必须回到游戏 jar
-        r.expectFromGame("com.zarkonnen.airships.MyDraw", "vanilla (GL now routed at the GL layer)");
-        r.expectFromGame("com.zarkonnen.airships.ShipLayers", "vanilla (GL now routed at the GL layer)");
-        r.expectFromGame("com.zarkonnen.airships.LightMapLayer", "vanilla");
-        r.expectFromGame("com.zarkonnen.airships.RotatingShader", "vanilla");
+        r.expectFromMod("com.zarkonnen.airships.MyDraw", "migrated (GL calls via GLCompat)");
+        r.expectFromMod("com.zarkonnen.airships.ShipLayers", "migrated game class");
         r.expectFromMod("org.json.JSONObject", "migrated (no sun.misc dependency)");
 
         // ---- 4b. 迁移没有实际改动的游戏类必须仍由游戏 jar 提供 ----
@@ -115,13 +112,9 @@ public final class EngineClassResolver {
         r.expectFromGame("com.zarkonnen.airships.Server", "vanilla");
 
         // ---- 5. LWJGL3 运行时必须来自 LWJGL3，而不是 lwjgl.jar(LWJGL2) ----
-        // GL11 / GL20 由本 MOD 的 GL 路由 shim 提供（把 14 个函数转到 GLCompat）；
-        // GL11C 必须仍是 LWJGL3 原件——shim 与 GLCompat 都靠它调真实 GL，
-        // 一旦它也被覆盖就会无限递归。
-        r.expectFromMod("org.lwjgl.opengl.GL11", "GL routing shim (14 funcs -> GLCompat)");
-        r.expectFromMod("org.lwjgl.opengl.GL20", "GL routing shim (4 funcs -> GLCompat)");
-        r.expectLwjgl3("org.lwjgl.opengl.GL11C");
+        r.expectLwjgl3("org.lwjgl.opengl.GL11");
         r.expectLwjgl3("org.lwjgl.opengl.GL13");
+        r.expectLwjgl3("org.lwjgl.opengl.GL20");
         r.expectLwjgl3("org.lwjgl.opengl.GL30");
         r.expectLwjgl3("org.lwjgl.glfw.GLFW");
         r.expectLwjgl3("org.lwjgl.stb.STBImage");

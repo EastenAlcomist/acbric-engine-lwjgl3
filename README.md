@@ -45,18 +45,15 @@ KnotClassLoader URL order (first → last, first wins)
 | `com/zarkonnen/catengine/lwjgl3/**` | 12 | LWJGL3 backend: main loop, `GLCompat`, `Tex`, `GlProgram`, `Framebuffer`, `OpenAlAudio`, `OggStream`, … |
 | `org/newdawn/slick/**` | 21 | Hand-written Slick2D compatibility layer, **replaces `libs/slick.jar`** |
 | `org/lwjgl/opengl/{Display,DisplayMode}` | 2 | LWJGL2 `Display`/`DisplayMode` shims (GLFW-backed) |
-| `com/zarkonnen/airships/**` | **19** | Game classes the migration really changed that cannot be solved at the engine layer |
-| `org/lwjgl/opengl/{GL11,GL20}` | 2 | **GL routing shims**: ASM-copied from LWJGL3 with only 14 methods rewritten to `GLCompat`, so vanilla game classes need no edit |
+| `com/zarkonnen/airships/**` | 165 | Game classes changed by the migration (GL via `GLCompat`, JDK 21 cleanups, …) |
 | `org/json/{JSONObject,JSONArray}` | 2 | Migration-changed (dropped `sun.misc.FloatingDecimal2`) |
 | `net/fabricacs/engine/**` | 4 | Acbric side: entrypoint, boot self-test, class-resolution diagnostics, shader installer |
 | LWJGL3 3.4.2 (API + natives) | — | Merged into the mod jar; LWJGL3 extracts its natives from the classpath |
 | `acbric_engine_data/shaders/*` | 36 | `#version 330 core` GLSL, installed into the instance's `data/` at preLaunch |
 
-The other **612** `com/zarkonnen.airships` classes are **not** in the mod — 466 are byte-identical
-to vanilla, 132 are bytecode-equivalent, and 14 are handled by the GL routing shims. They still come
-from `asplit-*.zip`. See [`docs/MIGRATION_FILES.txt`](docs/MIGRATION_FILES.txt) and
-[`docs/MIGRATION_PROVENANCE.md`](docs/MIGRATION_PROVENANCE.md). The remaining 19 are destined to
-become mixins — see [`docs/REBASELINE_PLAN.md`](docs/REBASELINE_PLAN.md).
+The other 466 `com.zarkonnen.airships` classes are byte-identical to vanilla and are **not** in the
+mod; they still come from `asplit-*.zip`. See [`docs/MIGRATION_FILES.txt`](docs/MIGRATION_FILES.txt)
+and [`docs/MIGRATION_PROVENANCE.md`](docs/MIGRATION_PROVENANCE.md).
 
 ---
 

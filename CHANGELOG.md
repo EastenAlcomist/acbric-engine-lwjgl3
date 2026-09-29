@@ -1,36 +1,5 @@
 # Changelog
 
-## 1.0.2
-
-**Moved GL routing down to the engine layer: taken-over game classes 33 → 19.**
-
-- New Gradle task `generateGlRoutingShims`: with ASM, copies `org/lwjgl/opengl/GL11.class` and
-  `GL20.class` out of `lwjgl-opengl-3.4.2.jar` and rewrites only **14 methods** to
-  `invokestatic GLCompat.<same name and descriptor>`, leaving everything else (including `native`
-  methods, `<clinit>` and annotations) untouched. The class name is unchanged, so JNI binding is
-  unaffected, and the generated classes sort before `zipTree(lwjgl3)` so they win in the jar.
-  Routed functions (from a source scan, not an estimate): on `GL11` — `glBegin` `glEnd`
-  `glVertex2d` `glVertex2f` `glTexCoord2d` `glColor3f` `glColor4f` `glBindTexture` `glEnable`
-  `glDisable`; on `GL20` — `glVertexAttrib1f/2f/3f/4f`. Constants are inlined at compile time and
-  need no handling.
-- Deleted 14 game classes that did nothing but GL routing (`MyDraw`, `ShipLayers`, `RotatingShader`,
-  `RotatingColoringShader`, `LightMapLayer`, `LightHaloLayer`, `BeamLayer`, `ParticleVisualLayer`,
-  `Particle`, `ShapeUtils`, `FlagTestScreen`, `TechScreen`, `CampaignStatsDisplay`,
-  `SaveHelperWidget`). No vanilla game class was changed and no mixin was written for them — the
-  injection points other mods occupy (`Appearance`, `ShipLayers`) were not touched at all.
-- **Fixed an infinite-recursion trap**: `GLCompat` called the real GL through fully-qualified names
-  (`GL11.glEnable`/`glDisable`/`glBindTexture`, 4 sites); once GL11 is shadowed those route back into
-  `GLCompat`. All four now use the unshadowed `GL11C`, with a dedicated guard in `ci-guards.sh`.
-- Build-time validation: all 14 descriptors must be found, otherwise the build fails — so a LWJGL3
-  upgrade cannot silently drop routing.
-- The self-test now asserts `GL11`/`GL20` come from this mod while `GL11C` still comes from the LWJGL3
-  jar, and `MyDraw`/`ShipLayers`/`LightMapLayer`/`RotatingShader` must come from the game jar.
-
-Verified: build passes (`GL routing shims: 14 methods routed to GLCompat`); `javap` confirms
-GL11.glBegin/glBindTexture and GL20.glVertexAttrib1f now delegate to GLCompat, the unrouted
-glBlendFunc is untouched, and GL11C.glEnable is still the LWJGL3 original; `engineSelfTest` PASSES;
-a 95-second real launch produced **0 exceptions** with the main menu and OpenAL working.
-
 ## 1.0.1
 
 **Narrowed the game source taken over: 165 → 33 classes.**

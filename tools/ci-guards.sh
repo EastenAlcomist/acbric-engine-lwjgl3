@@ -98,7 +98,7 @@ echo "== 5b. 游戏源码纳管范围（漂移守卫）=========================
 # 本 MOD 只接管迁移"真正改过"的游戏类。这个数字是逐 hunk 分类得出的基线：
 # 165 个源文件里有语义差异的只有 33 个，其余 132 个编译产物等价，直接用游戏 jar 的版本。
 # 数字变了必须是有意为之：要么重新跑分类，要么说明为什么。
-EXPECTED_AIRSHIPS_SOURCES=19
+EXPECTED_AIRSHIPS_SOURCES=33
 actual=$(find src/main/java/com/zarkonnen/airships -name '*.java' 2>/dev/null | wc -l | tr -d ' ')
 if [ "$actual" -eq "$EXPECTED_AIRSHIPS_SOURCES" ]; then
     ok "纳管的游戏类仍是基线 $EXPECTED_AIRSHIPS_SOURCES 个"
@@ -112,30 +112,6 @@ if [ -f docs/MIGRATION_FILES.txt ]; then
     ok "docs/MIGRATION_FILES.txt 存在（改动清单）"
 else
     bad "缺少 docs/MIGRATION_FILES.txt"
-fi
-
-echo
-echo "== 5c. GL 路由（递归守卫）======================================"
-# GL11/GL20 会被本 MOD 的同名 shim 覆盖，其中 14 个函数被改成调 GLCompat。
-# GLCompat 自己若再用全限定名调这些函数，就会转回自己 → 无限递归。
-ROUTED='glBegin|glEnd|glVertex2d|glVertex2f|glTexCoord2d|glColor3f|glColor4f|glBindTexture|glEnable|glDisable|glVertexAttrib1f|glVertexAttrib2f|glVertexAttrib3f|glVertexAttrib4f'
-GLCOMPAT=src/main/java/com/zarkonnen/catengine/lwjgl3/GLCompat.java
-if [ ! -f "$GLCOMPAT" ]; then
-    bad "缺少 $GLCOMPAT"
-else
-    recursive=$(grep -nE "org[.]lwjgl[.]opengl[.](GL11|GL20)[.]($ROUTED)\(" "$GLCOMPAT" || true)
-    if [ -n "$recursive" ]; then
-        bad "GLCompat 用全限定名调了被路由的函数，会无限递归（应改用 GL11C）："
-        echo "$recursive" | sed 's/^/         /'
-    else
-        ok "GLCompat 未用全限定名调用被路由的 GL 函数"
-    fi
-    # 被路由的方法必须转发到 GL11C（未被覆盖的那个类）
-    if grep -qE "org[.]lwjgl[.]opengl[.]GL11C[.]" "$GLCOMPAT"; then
-        ok "GLCompat 通过 GL11C 调真实 GL"
-    else
-        bad "GLCompat 没有引用 GL11C —— 覆盖 GL11 后它无法调真实 GL"
-    fi
 fi
 
 echo
