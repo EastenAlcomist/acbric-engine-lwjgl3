@@ -40,6 +40,8 @@ if (Test-Path $dist) { Remove-Item $dist -Recurse -Force }
 New-Item -ItemType Directory -Path $dist | Out-Null
 
 foreach ($n in $Natives) {
+    # 先清掉同分类的旧产物：否则 build/libs 里的历史版本会被下面的通配一起拷进 dist/
+    Get-ChildItem (Join-Path $root "build/libs/*-$n.jar") -ErrorAction SilentlyContinue | Remove-Item -Force
     & $gradlew jar --console=plain "-PmodVersion=$Version" "-Pacbric.lwjglNatives=$n" "-PmodClassifier=$n"
     if ($LASTEXITCODE -ne 0) { throw "构建失败：$n" }
     $jar = Get-ChildItem (Join-Path $root "build/libs/*-$n.jar") | Select-Object -First 1

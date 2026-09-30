@@ -31,6 +31,8 @@ echo "== 1/3 校验依赖 =="
 echo "== 2/3 构建 $VERSION（${NATIVES[*]}）=="
 rm -rf dist && mkdir -p dist
 for n in "${NATIVES[@]}"; do
+    # 先清掉同分类的旧产物：否则 build/libs 里的历史版本会被下面的 glob 一起拷进 dist/
+    rm -f "build/libs/"*"-$n.jar"
     ./gradlew jar --console=plain -PmodVersion="$VERSION" -Pacbric.lwjglNatives="$n" -PmodClassifier="$n"
     cp "build/libs/"*"-$n.jar" dist/
 done
