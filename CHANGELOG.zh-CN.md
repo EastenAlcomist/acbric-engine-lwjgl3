@@ -1,6 +1,6 @@
 # 变更记录
 
-## 未发布：剩余 13 类的完整分类（结论：都不宜用 mixin 消掉）
+### 剩余 13 类的完整分类（结论：都不宜用 mixin 消掉）
 
 用“调用点引用集”方法把剩余 13 类全部重量了一遍（这方法此前抓出过 `Job` 的空行误判）。
 
@@ -41,7 +41,7 @@
 当前状态：构建通过；`engineSelfTest` PASS；`ci-guards` PASS（基线 13）。
 
 
-## 未发布：Job 下沉（14 → 13）
+### Job 下沉（14 → 13）
 
 `Job` 删除。逐字节对比发现它与原版**只差一个空行**（`public strictfp interface Job` 前多了一行），
 属于此前 132 类漏网的一个 —— 当时的归一化分类器对"仅增删空行"的 hunk 判成了真实改动。
@@ -58,7 +58,7 @@
 
 验证：构建通过；`engineSelfTest` PASS；`ci-guards` PASS（基线 13）。
 
-## 未发布：AGame 下沉到 mixin（15 → 14）
+### AGame 下沉到 mixin（15 → 14）
 
 `AGameMixin`：给原版 `AGame.getStaticGameDirectory()` 补 `-Dacs.staticdir` 覆盖分支
 （迁移版与原版在这个方法上只差这一处）。用 `@Inject(at = HEAD, cancellable = true)`，
@@ -79,7 +79,7 @@
 验证：构建通过；`engineSelfTest` PASS（`AGameMixin` 生效）；`ci-guards` PASS（基线 14）。
 **实机画面待用户复测**。
 
-## 未发布：ShipLayers 下沉（16 → 15）
+### ShipLayers 下沉（16 → 15）
 
 `ShipLayers` 删除。依据：源码差异是纯 GL 换主（11 处），且它用到的 11 个 `GLCompat` 函数
 （`glBegin` `glBindTexture` `glColor3f` `glEnd` `glTexCoord2d` `glVertex2d`
@@ -92,7 +92,7 @@
 验证：构建通过；`engineSelfTest` PASS；`ci-guards` PASS（基线 15）。
 **战斗画面待用户复测。**
 
-## 未发布：再下沉 5 个类（21 → 16）
+### 再下沉 5 个类（21 → 16）
 
 按字节码方法判定后删除：
 
@@ -111,7 +111,7 @@
 验证：构建通过；`engineSelfTest` PASS；`ci-guards` PASS（基线 16）。
 **战斗画面待用户复测。**
 
-## 未发布：首个游戏类 mixin 上线（23 → 21）
+### 首个游戏类 mixin 上线（23 → 21）
 
 - **新增 mixin 基础设施**：`acbric-engine-lwjgl3.mixins.json` + `fabric.mod.json` 的
   `mixins` 字段 + `net.fabricacs.engine.mixin` 包。Mixin 依赖来自框架 `loader-libs`
@@ -129,7 +129,7 @@
 Mixin 配置是 `defaultRequire: 1`，注入失败会直接抛错，所以注入确实生效。
 **战斗画面待用户复测**（这是唯一能覆盖光照层路径的验收）。
 
-## 未发布：按调研结论重新实施 GL 路由（33 → 23）
+### 按调研结论重新实施 GL 路由（33 → 23）
 
 依据「二·补」的调研结论，只对**纯 GL 换主**的类启用路由：
 
@@ -147,7 +147,7 @@ Mixin 配置是 `defaultRequire: 1`，注入失败会直接抛错，所以注入
 **用户实机验证：战斗界面正常。** 至此确认——整批路由（19 类）会破坏战斗渲染、
 选择性路由（23 类）不会；根因就是 `LightMapLayer` 那一处 `Graphics.flush()`。
 
-## 未发布：回退 GL 路由
+### 回退 GL 路由
 
 **1.0.2 的 GL 路由（`GL11`/`GL20` shim）已回退**，回到 33 类版。
 
