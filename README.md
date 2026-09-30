@@ -45,7 +45,7 @@ KnotClassLoader URL order (first → last, first wins)
 | `com/zarkonnen/catengine/lwjgl3/**` | 12 | LWJGL3 backend: main loop, `GLCompat`, `Tex`, `GlProgram`, `Framebuffer`, `OpenAlAudio`, `OggStream`, … |
 | `org/newdawn/slick/**` | 21 | Hand-written Slick2D compatibility layer, **replaces `libs/slick.jar`** |
 | `org/lwjgl/opengl/{Display,DisplayMode}` | 2 | LWJGL2 `Display`/`DisplayMode` shims (GLFW-backed) |
-| `com/zarkonnen/airships/**` | 165 | Game classes changed by the migration (GL via `GLCompat`, JDK 21 cleanups, …) |
+| `com/zarkonnen/airships/**` | **13** | Game classes the migration really changed that cannot be solved at the engine layer (**final scope**) |
 | `org/json/{JSONObject,JSONArray}` | 2 | Migration-changed (dropped `sun.misc.FloatingDecimal2`) |
 | `net/fabricacs/engine/**` | 4 | Acbric side: entrypoint, boot self-test, class-resolution diagnostics, shader installer |
 | LWJGL3 3.4.2 (API + natives) | — | Merged into the mod jar; LWJGL3 extracts its natives from the classpath |

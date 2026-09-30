@@ -41,14 +41,14 @@ KnotClassLoader 的 URL 顺序（先 → 后，前者胜）
 | `com/zarkonnen/catengine/lwjgl3/**` | 12 | LWJGL3 后端：主循环、`GLCompat`、`Tex`、`GlProgram`、`Framebuffer`、`OpenAlAudio`、`OggStream`… |
 | `org/newdawn/slick/**` | 21 | 手写 Slick2D 兼容层，**取代 `libs/slick.jar`** |
 | `org/lwjgl/opengl/{Display,DisplayMode}` | 2 | LWJGL2 `Display`/`DisplayMode` shim（委托 GLFW） |
-| `com/zarkonnen/airships/**` | 165 | 迁移改动过的游戏类（GL 调用走 `GLCompat`、JDK 21 兼容清理…） |
+| `com/zarkonnen/airships/**` | **13** | 迁移真正改过行为、且无法在引擎层解决的游戏类（**最终范围**） |
 | `org/json/{JSONObject,JSONArray}` | 2 | 迁移改动过（去掉 `sun.misc.FloatingDecimal2`） |
 | `net/fabricacs/engine/**` | 4 | Acbric 侧：入口、启动自检、类解析诊断、着色器安装器 |
 | LWJGL3 3.4.2（API + natives） | — | 并入 MOD JAR，LWJGL3 从 classpath 自行解包 natives |
 | `acbric_engine_data/shaders/*` | 36 | `#version 330 core` GLSL，preLaunch 装进实例的 `data/` |
 
-其余 598 个 `com.zarkonnen.airships` 类（466 个与原版逐字节相同 + 132 个编译产物等价）
-**不在 MOD 里**，仍由 `asplit-*.zip` 提供。目标是把剩下这 33 个也降到 0，
+其余 618 个 `com.zarkonnen.airships` 类（466 个与原版逐字节相同 + 132 个编译产物等价）
+**不在 MOD 里**，仍由 `asplit-*.zip` 提供。目标是剩余 13 个已定为最终范围，
 路线见 [docs/REBASELINE_PLAN.zh-CN.md](docs/REBASELINE_PLAN.zh-CN.md)。
 逐字节差异清单见 [`docs/MIGRATION_FILES.txt`](docs/MIGRATION_FILES.txt)，来源与改造理由见
 [`docs/MIGRATION_PROVENANCE.md`](docs/MIGRATION_PROVENANCE.md)。
