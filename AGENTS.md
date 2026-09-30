@@ -8,8 +8,9 @@
 
 它不做玩法扩展，而是**替换引擎**：jar 内提供 LWJGL3 后端、Slick2D 兼容层、
 LWJGL2 `Display`/`DisplayMode` shim、`GL11`/`GL20` **GL 路由 shim**，
-以及迁移**真正改过行为**的 23 个游戏类
-（原先 165 个里：132 个编译产物等价、10 个是纯 GL 换主已下沉到路由，都用游戏 jar 的版本）。
+以及迁移**真正改过行为**的 13 个游戏类（**已定为最终纳管范围**）。
+原先 165 个里：132 个编译产物等价、15 个纯 GL 换主已下沉到路由、11 个已下沉到
+引擎层或 mixin（`LightMapLayer`/`AGame`）、`MyDraw`/`Job` 差异无行为影响 —— 都用游戏 jar 的版本。
 装上它，游戏整体跑在 LWJGL3 上；卸掉它，游戏回到 Slick2D + LWJGL2。
 
 ## 机制（改代码前必须理解）
@@ -86,12 +87,21 @@ Fabric 一般不允许 MOD 覆盖游戏类，但这条启动链允许，且已�
 
 ## 纳管范围（改动前先看）
 
-本 MOD **只接管迁移真正改过行为的 23 个游戏类**，其余由游戏 jar 提供。
+本 MOD **只接管迁移真正改过行为的 13 个游戏类**（**已定为最终纳管范围**），其余由游戏 jar 提供。
 判定方法、分类结果与基线落差见 `docs/MIGRATION_PROVENANCE.md`。要点：
 
 - 想加类进 MOD，先按该文档的归一化流程跑一遍差异分类；无语义差异的类**不要**加回来。
 - **只带 import 改动的文件不能一律丢弃**：类型参与 cast 时字节码不同（`CombatSoundEffects`）。
-- 数量基线 23 由 `tools/ci-guards.sh` 守着；改动要同步基线数字与文档。
+- 数量基线 13 由 `tools/ci-guards.sh` 守着；改动要同步基线数字与文档。
+- **"调用点引用集"对比法有盲点**：它只看 `javap` 的 `// Method` 注释（调用点），
+  **看不到"类新增了成员"**（声明没有调用点）。实测：`Keys` 显示 0/0/0，
+  但它新增的 `resetQueriedKeys()` 被本 MOD 的 `AirshipGame` 调用，删掉会 `NoSuchMethodError`。
+  判定"可删"之前必须另外确认该类**没有新增任何成员**。
+- **剩余 13 类不再 mixin 化**（2026-09-29 用户决定）：其中 5 个（`Main` `Mod` `AirshipGame`
+  `Expansion` `CombatSoundEffects`）被 `SlickEngine$MyInput` → `Lwjgl3Engine$MyInput` 这个
+  **类型变更**绑在一起 —— 类型变更不是可注入行为，mixin 原理上表达不了。
+  其余为迁移自身的修复（`Keys.resetQueriedKeys`、`LaunchSettings.targetFPS`、
+  `Appearance.subDebugCount`、`StrategicScreen` 文案 bug）与 API 回填。
 - **把某个类下沉到引擎层之前，必须先做字节码对比**：对 vanilla（`asplit-*.zip`）与迁移版
   分别 `javap -p -c`，取 `Method`/`Field` 引用集合做差。
   **只有"纯 GL 换主"（差异仅为 `GL11.x`/`GL20.x` → `GLCompat.x`，外加迁移版新增的调试打印）
