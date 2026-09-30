@@ -1,5 +1,39 @@
 # 变更记录
 
+## 未发布：剩余 13 类的完整分类（结论：都不宜用 mixin 消掉）
+
+用“调用点引用集”方法把剩余 13 类全部重量了一遍（这方法此前抓出过 `Job` 的空行误判）。
+
+### 方法的盲点（本轮踩到）
+
+**`Keys` 显示 0/0/0，但它不能被删。** 该方法比较的是 `javap` 里 `// Method` 注释体现的
+**调用点引用**；`Keys` 新增的 `resetQueriedKeys()` 是**声明**，类内没有调用点，因此不可见。
+而 `AirshipGame`（本 MOD 自己的类）正在调它 —— 删掉 `Keys` 会 `NoSuchMethodError`。
+**结论：该方法只能证明“没有改调用”，不能证明“没有新增成员”。**
+
+### 13 类的实际改动类型
+
+| 类型 | 类 | 能否用 mixin |
+|---|---|---|
+| **引擎类型替换**（`SlickEngine$MyInput` → `Lwjgl3Engine$MyInput`） | `Main`(25) `Mod`(21) `AirshipGame`(13) `Expansion`(4) `CombatSoundEffects`(4) | **不能**——这是**类型**变更，不是可注入的行为 |
+| **API 回填** | `BonusableValue`(38) `CityUpgradeType`(7) `FBOGraphicsFactory`(5) | 部分可以；`BonusableValue` 的 38 处集中在 `ImgFromJSON` 字段→方法 |
+| **新增成员** | `Keys` `LaunchSettings`(`targetFPS`) `Appearance`(`subDebugCount`) | 可以，需访问器接口（调用方是本 MOD 自己的类） |
+| **单点修复** | `StrategicScreen`（文案 bug） | 可以，但需 `ordinal=6`，**且该文案极难在游戏里触发验证** |
+| **编译器差异（疑似误报）** | `DiplomacyAI`（1: `String.valueOf`） | 待确认，可能只是字符串拼接实现差异 |
+
+### 建议
+
+前 5 个类被**同一个类型变更**绑在一起，而那是迁移的核心（换引擎），mixin 表达不了。两条路：
+
+1. **接受现状**：这 13 个类继续以源码形式留在 MOD 里，它们主要是迁移自己的修复与引擎接线。
+2. **消除类型变更**：若让 `Lwjgl3Engine.MyInput` 继承 `SlickEngine.MyInput`，原版类的 cast 就能通过，
+   这 5 个类可一次性消掉。代价是要引入 `CatSlick.jar` 并处理内部类的封闭实例，可行性未验证。
+
+**没有继续盲目前推**：不可验证的改动不做。`StrategicScreen` 那处文案修复尤其如此。
+
+当前状态：构建通过；`engineSelfTest` PASS；`ci-guards` PASS（基线 13）。
+
+
 ## 未发布：Job 下沉（14 → 13）
 
 `Job` 删除。逐字节对比发现它与原版**只差一个空行**（`public strictfp interface Job` 前多了一行），
